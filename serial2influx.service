@@ -1,0 +1,12 @@
+[Unit]
+Description=Read GPS output on serial and send location to InfluxDB
+After=multi-user.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /home/pi/sailui/serial2influxdb_position.py
+Restart=on-failure
+RestartSec = "20sec"
+
+[Install]
+WantedBy=multi-user.target
