@@ -12,6 +12,7 @@ import os
 import pynmea2
 from influxdb import InfluxDBClient,exceptions
 
+ThreadCount = 0
 
 def rmc2payloads(phrase):
     message = pynmea2.parse(phrase)
@@ -81,6 +82,7 @@ def multi_threaded_client(connection, q):
 
 
 def thread_clients(threadname, q, sss):
+    global ThreadCount
     while True and kill_signal:
         # Gestion des connexions clients
         Client, address = sss.accept()
@@ -133,13 +135,12 @@ if __name__ == "__main__":
     ServerSideSocket = socket.socket()
     host = '127.0.0.1'
     port = 10111
-    ThreadCount = 0
     try:
         ServerSideSocket.bind((host, port))
     except socket.error as e:
         print(str(e))
 
-    print('Socket is listening..')
+    print(f'Socket is listening on {host}:{port}...')
     ServerSideSocket.listen(5)
     
     # Création des threads et lancement
@@ -149,11 +150,13 @@ if __name__ == "__main__":
     threadSerial = Thread( target=thread_serial, args=("Thread lecture du port série", queue, ClientInflux) )
     threadSerial.setName( threadSerial_name )
     threadSerial.start()
+    print(f'{threadSerial_name} démarré')
     
     threadClient_name = "Thread gestion des clients"
     threadClient = Thread( target=thread_clients, args=(threadClient_name, queue, ServerSideSocket) )
     threadClient.setName( threadClient_name )
     threadClient.start()
+    print(f'{threadClient_name} démarré')
 
     # Boucle de surveillance de la vie des Threads
     while True and kill_signal:
