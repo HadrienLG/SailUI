@@ -115,9 +115,10 @@ class Server:
                 self.server.close()
             sys.exit(1)
 
-    def run(self):
+    def wait_clients(self):
+        #TODO : à threader en parallèle de l'écoute des messages clients
         self.open_socket()
-        self.server.listen(5)
+        self.server.listen(10)
 
         while True :
             # Gestion des nouveaux clients
@@ -132,6 +133,17 @@ class Server:
                 print(client)
 
         self.server.close()
+    
+    def recv_clients(self):
+        #TODO : à threader en parallèle des connections des nouveaux clients
+        # Surveillance des clients connectés
+        # for client in self.clients:
+        #     try:
+        #         message = client.connection.recv(1024).decode()
+        #         print(f'Client {client} dit : {message}')
+        #     except:
+        #         print(f'Client {client} muet')
+            
 
 
 # Gestion de la connexion vers la base InfluxDB
@@ -149,7 +161,7 @@ def connectInfluxDBClient():
 
 
 def thread_clients(threadname, sss):
-    sss.run() # démarre le socket et attend les connections des clients
+    sss.wait_clients() # démarre le socket et attend les connections des clients
 
 
 def thread_serial(threadname, cidb, sss):

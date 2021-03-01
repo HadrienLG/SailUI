@@ -1,6 +1,10 @@
 import socket
 import sys
+import datetime
+from gpiozero import Button
+from time import sleep
 
+# Socket
 port = 10111
 size = 1024
 s = None
@@ -18,9 +22,23 @@ except socket.error as e:
 data = str.encode("> Hello server, I'm client")
 s.sendall(data)
 
+
+def button_callback():
+    message = "[{}] Button was pushed!".format(str(datetime.datetime.now()))
+    print(message)
+    s.send(message.encode())    
+    sleep(0.2)
+
+# Bouton
+# GPIO | o o x o o o o o o ...
+#      | o x o o o o o o o ...
+button = Button(17)
+button.when_pressed = button_callback
+
+
 # Réception des messages
 while True:    
     data = s.recv(size)
     message = data.decode('UTF-8')
-    print(f"NMEA: {message}")
+    print(f"Socket: {message}")
 s.close()
