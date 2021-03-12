@@ -36,6 +36,7 @@ import sys
 import threading
 
 # Other Libs
+from libs.LEDplus import LEDplus
 import pynmea2
 from influxdb import InfluxDBClient,exceptions
 
@@ -115,7 +116,7 @@ class Server:
                 self.server.close()
             sys.exit(1)
 
-    def wait_clients(self):
+    def wait_clients(self, status_led=None):
         #TODO : à threader en parallèle de l'écoute des messages clients
         self.open_socket()
         self.server.listen(10)
@@ -126,23 +127,29 @@ class Server:
             c = Client(ip, port, connection)
             c.start()
             self.clients.append(c)
+            num_clients = len(self.clients)
+
             
             # Supervision des clients connectés
-            print('[{}] Client(s) connecté(s) : {}'.format(time.ctime(),len(self.clients)))
+            print('[{}] Client(s) connecté(s) : {}'.format(time.ctime(),num_clients))
             for client in self.clients:
                 print(client)
+            
+            # Signalisation sur la led de status
+            if num_clients > 0:
+                status_led.train(num_clients)
 
         self.server.close()
     
     def recv_clients(self):
         #TODO : à threader en parallèle des connections des nouveaux clients
         # Surveillance des clients connectés
-        # for client in self.clients:
-        #     try:
-        #         message = client.connection.recv(1024).decode()
-        #         print(f'Client {client} dit : {message}')
-        #     except:
-        #         print(f'Client {client} muet')
+        for client in self.clients:
+            try:
+                message = client.connection.recv(1024).decode()
+                print(f'Client {client} dit : {message}')
+            except:
+                print(f'Client {client} muet')
             
 
 
@@ -160,11 +167,11 @@ def connectInfluxDBClient():
 
 
 
-def thread_clients(threadname, sss):
-    sss.wait_clients() # démarre le socket et attend les connections des clients
+def thread_clients(threadname, sss, status_led):
+    sss.wait_clients(status_led) # démarre le socket et attend les connections des clients
 
 
-def thread_serial(threadname, cidb, sss):
+def thread_serial(threadname, cidb, sss, status_led):
     while True:
         try:
             # Lecture d'une ligne et décodage
@@ -175,10 +182,10 @@ def thread_serial(threadname, cidb, sss):
             if 'RMC' in phrase:
                 charge = rmc2payloads(phrase)
                 if charge['fields']['latitude'] != 0 and charge['fields']['longitude'] != 0:
-                    print(charge)
+                    # print(charge)
                     cidb.write_points([charge])
                     cast_msg = str.encode(phrase)
-                    print(cast_msg)
+                    # print(cast_msg)
                     sss.send_to_all_clients(cast_msg)
             if 'GLL' in phrase:
                 charge = gll2payloads(phrase)
@@ -198,6 +205,21 @@ def thread_serial(threadname, cidb, sss):
 if __name__ == '__main__':
     user_signal = True
     
+    # Initialisation des GPIO
+    green = LEDplus(22)    
+    red = LEDplus(17)    
+    yellow1 = LEDplus(23)
+    yellow2 = LEDplus(24)
+    leds = [green, red, yellow1, yellow2]
+    
+    for led in leds:
+        led.on()
+    time.sleep(1)
+    for led in leds:
+        led.off()
+    
+    green.blink(1) # Clignottement durant l'initialisation
+    
     # Initialisation du port série
     port = "/dev/serial0"
     serialPort = serial.Serial(port, baudrate = 9600, timeout = 0.5)
@@ -212,28 +234,38 @@ if __name__ == '__main__':
     
     # Multithread de la gestion client et de l'entrée série
     threadSerial_name = "Thread lecture du port série"
-    threadSerial = threading.Thread( target=thread_serial, args=("Thread lecture du port série", ClientInflux, ServerSideSocket) )
+    threadSerial = threading.Thread( target=thread_serial, args=("Thread lecture du port série", ClientInflux, ServerSideSocket, yellow1) )
     threadSerial.setName( threadSerial_name )
     threadSerial.start()
     print(f'{threadSerial_name} démarré')
+    yellow1.blink(0.5)
     
     threadClient_name = "Thread gestion des clients"
-    threadClient = threading.Thread( target=thread_clients, args=(threadClient_name, ServerSideSocket) )
+    threadClient = threading.Thread( target=thread_clients, args=(threadClient_name, ServerSideSocket, yellow2) )
     threadClient.setName( threadClient_name )
     threadClient.start()
     print(f'{threadClient_name} démarré')
+    yellow2.blink(0.5)
     
+    green.on()    
     while True and user_signal:
         time.sleep(1)
         try:
-            print('[',time.ctime(),']')
-            print(threadClient.getName(), threadClient.is_alive())
-            print(threadSerial.getName(), threadSerial.is_alive())
+            if not threadClient.is_alive():
+                red.on()
+                yellow1.on()
+                print('[',time.ctime(),']',threadClient.getName(), threadClient.is_alive())
+            if not threadSerial.is_alive():
+                red.on()
+                yellow2.on()
+                print('[',time.ctime(),']',threadSerial.getName(), threadSerial.is_alive())
         except (KeyboardInterrupt, SystemExit): #when you press ctrl+c
             user_signal = False
             ServerSideSocket.close()
             ClientInflux.close()
             print("Done.\nExiting.")
+            for led in leds:
+                led.off()
     
     # TODO : gérer la fin (cloture des connexions)
     threadClient.join()

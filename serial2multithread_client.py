@@ -32,7 +32,7 @@ def button_callback():
 # Bouton
 # GPIO | o o x o o o o o o ...
 #      | o x o o o o o o o ...
-button = Button(17)
+button = Button(26)
 button.when_pressed = button_callback
 
 
