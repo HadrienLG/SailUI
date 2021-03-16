@@ -76,38 +76,33 @@ def thread_new_clients(threadname, sss, status_led):
 def thread_listen_clients(threadname, sss):
     sss.recv_clients() # écoute tous les messages venant des clients
 
-def thread_capteurs(threadname, gyro, baro, therm):
-    PRESS_DATA = 0.0
-    TEMP_DATA = 0.0
-    u8Buf = [0,0,0]
-    
+def thread_gyro(threadname, gyro):
     while True:
         # Gyroscope
         gyro.icm20948update()
+        message = '[GYROSCOPE]\n' + \
+                  'Roll = {:.2f}, Pitch = {:.2f}, Yaw = {:.2f}\n'.format(icm20948.Roll, icm20948.Pitch, icm20948.Yaw) + \
+                  'Acceleration:  X = {}, Y = {}, Z = {}\n'.format(icm20948.Acceleration[0], icm20948.Acceleration[1], icm20948.Acceleration[2]) + \
+                  'Gyroscope:     X = {}, Y = {}, Z = {}\n'.format(icm20948.Gyroscope[0], icm20948.Gyroscope[1], icm20948.Gyroscope[2]) + \
+                  'Magnetic:      X = {}, Y = {}, Z = {}'.format(icm20948.Magnetic[0], icm20948.Magnetic[1], icm20948.Magnetic[2])
         print("-------------------------------------------------------------")
-        print('Roll = {:.2f}, Pitch = {:.2f}, Yaw = {:.2f}'.format(icm20948.Roll, icm20948.Pitch, icm20948.Yaw))
-        print('Acceleration:  X = {}, Y = {}, Z = {}'.format(icm20948.Acceleration[0], icm20948.Acceleration[1], icm20948.Acceleration[2]))  
-        print('Gyroscope:     X = {}, Y = {}, Z = {}'.format(icm20948.Gyroscope[0], icm20948.Gyroscope[1], icm20948.Gyroscope[2]))
-        print('Magnetic:      X = {}, Y = {}, Z = {}'.format(icm20948.Magnetic[0], icm20948.Magnetic[1], icm20948.Magnetic[2]))
+        print(message)
         
+def thread_baro(threadname, baro):
+    while True:
+        time.sleep(5)
         # Baromètre
-        baro.LPS22HB_START_ONESHOT()
-        if (baro._read_byte(LPS_STATUS)&0x01)==0x01:  # a new pressure data is generated
-            u8Buf[0]=baro._read_byte(LPS_PRESS_OUT_XL)
-            u8Buf[1]=baro._read_byte(LPS_PRESS_OUT_L)
-            u8Buf[2]=baro._read_byte(LPS_PRESS_OUT_H)
-            PRESS_DATA=((u8Buf[2]<<16)+(u8Buf[1]<<8)+u8Buf[0])/4096.0
-        if (baro._read_byte(LPS_STATUS)&0x02)==0x02:   # a new pressure data is generated
-            u8Buf[0]=baro._read_byte(LPS_TEMP_OUT_L)
-            u8Buf[1]=baro._read_byte(LPS_TEMP_OUT_H)
-            TEMP_DATA=((u8Buf[1]<<8)+u8Buf[0])/100.0
+        baro.update()
         print("-------------------------------------------------------------")
-        print('Pressure = %6.2f hPa , Temperature = %6.2f °C\r\n'%(PRESS_DATA,TEMP_DATA))
+        print('[BAROMETRE] Pressure = {:6.2f} hPa , Temperature = {:6.2f} °C'.format(baro.PRESS_DATA,baro.TEMP_DATA))
 
+def thread_therm(threadname, therm):
+    while True:
+        time.sleep(1)
         # Thermomètre
         temperature, humidite = therm.measurements
         print("-------------------------------------------------------------")
-        print('Temperature = {%6.2}f°C , Humidity = {%6.2}f%%'.format(temperature, humidite))
+        print('[THERMOMETRE] Temperature = {:6.2f}°C , Humidity = {:6.2f}%%'.format(temperature, humidite))
 
 def thread_serial(threadname, cidb, sss, status_led):
     while True:
@@ -192,32 +187,26 @@ if __name__ == '__main__':
     # Ecoute du port série
     threadSerial_name = "Thread lecture du port série"
     threadSerial = threading.Thread( target=thread_serial,
-                                     args=("Thread lecture du port série",
-                                           ClientInflux,
-                                           ServerSideSocket,
-                                           yellow1) )
+                                     args=(threadSerial_name, ClientInflux, ServerSideSocket, yellow1) )
     threadSerial.setName( threadSerial_name )
     threadSerial.start()
     print(f'{threadSerial_name} démarré')
     yellow1.blink(0.5)
     
     # Ecoute des capteurs thread_capteurs(threadname, gyro, baro, therm):
-    threadCapteurs_name = "Thread capteurs"
-    threadCapteurs = threading.Thread( target=thread_capteurs,
-                                     args=(threadCapteurs_name,
-                                           icm20948,
-                                           lps22hb,
-                                           shtc3) )
-    threadCapteurs.setName( threadCapteurs_name )
-    threadCapteurs.start()
-    print(f'{threadCapteurs_name} démarré')
+    threads_capteurs = []
+    for capteur in zip([icm20948, lps22hb, shtc3], ['Gyroscope', 'Baromètre', 'Thermomètre'], [thread_gyro, thread_baro, thread_therm]):
+        threadName = capteur[1]
+        threadObj = threading.Thread( target=capteur[2], args=(threadName, capteur[0]) )
+        threadObj.setName( threadName )
+        threads_capteurs.append(threadObj)
+        threadObj.start()
+        print(f'{threadName} démarré')    
     
     # Gestion des nouveaux clients
     threadNClient_name = "Thread gestion des clients"
     threadNClient = threading.Thread( target=thread_new_clients,
-                                      args=(threadNClient_name,
-                                            ServerSideSocket,
-                                            yellow2) )
+                                      args=(threadNClient_name, ServerSideSocket, yellow2) )
     threadNClient.setName( threadNClient_name )
     threadNClient.start()
     print(f'{threadNClient_name} démarré')
@@ -226,14 +215,12 @@ if __name__ == '__main__':
     # Ecoute des clients connectés
     threadLClient_name = "Thread gestion des clients"
     threadLClient = threading.Thread( target=thread_listen_clients,
-                                      args=(threadLClient_name,
-                                            ServerSideSocket) )
+                                      args=(threadLClient_name, ServerSideSocket) )
     threadLClient.setName( threadLClient_name )
     threadLClient.start()
     print(f'{threadLClient_name} démarré')
     
-    threads = [threadSerial, threadCapteurs,
-               threadNClient, threadLClient]
+    threads = [threadSerial, threadNClient, threadLClient] + threads_capteurs
     
     ##############################################
     # 2. Supervision des threads
