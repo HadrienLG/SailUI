@@ -28,12 +28,12 @@ SOFTWARE.
 # Generic/Built-in
 import datetime
 import serial
-from queue import Queue
 import time
 import os
 import socket
 import sys
 import threading
+from subprocess import check_call
 
 # Sensors
 from libs.LEDplus import LEDplus
@@ -45,6 +45,7 @@ from libs.TCS34725 import TCS34725 # Couleurs
 import busio
 import board
 import adafruit_shtc3
+from gpiozero import Button, LED
 
 # Project modules
 from server_sockets import Server, Client
@@ -65,14 +66,23 @@ __influence__ = {'InfluxDB':'https://www.influxdata.com/blog/getting-started-pyt
                  'NMEA parsing':'https://github.com/Knio/pynmea2',
                  'Waveshare Sense HAT': 'https://www.waveshare.com/wiki/Sense_HAT_(B)'}
 debug = False
+user_signal = True # variable global de boucle infinie
 
-def thread_new_clients(threadname, sss, status_led):
-    sss.wait_clients(status_led) # démarre le socket et attend les connections des clients
+def thread_new_clients(threadstop, sss, status_led):
+    while True:
+        sss.wait_clients(status_led) # démarre le socket et attend les connections des clients
+        if not threadstop():
+            print('Arrêt du thread New Client',threadstop())
+            break
 
-def thread_listen_clients(threadname, sss):
-    sss.recv_clients() # écoute tous les messages venant des clients
+def thread_listen_clients(threadstop, sss, db_evt):
+    while True:
+        sss.recv_clients(db_evt) # écoute tous les messages venant des clients
+        if not threadstop():
+            print('Arrêt du thread Listen Client',threadstop())
+            break
 
-def thread_gyro(threadname, db_cap, gyro):
+def thread_gyro(threadstop, db_cap, gyro):
     while True:
         # Gyroscope
         gyro.icm20948update()
@@ -90,8 +100,11 @@ def thread_gyro(threadname, db_cap, gyro):
             print(message)
         db_cap.add_info( {'type':'gyroscope', 'roll':roll, 'pitch':pitch, 'yaw':yaw,
                           'acceleration':acceleration, 'gyroscope':gyroscope, 'magnetic':magnetic} )
+        if not threadstop():
+            print('Arrêt du thread Gyroscope',threadstop())
+            break
         
-def thread_baro(threadname, db_cap, baro):
+def thread_baro(threadstop, db_cap, baro):
     while True:
         time.sleep(5)
         # Baromètre
@@ -101,8 +114,11 @@ def thread_baro(threadname, db_cap, baro):
             print("-------------------------------------------------------------")
             print('[BAROMETRE] Pressure = {:6.2f} hPa , Temperature = {:6.2f} °C'.format(pression, temperature))
         db_cap.add_info( {'type':'barometre', 'pression':pression, 'temperature':temperature} )
+        if not threadstop():
+            print('Arrêt du thread Barometre',threadstop())
+            break
 
-def thread_therm(threadname, db_cap, therm):
+def thread_therm(threadstop, db_cap, therm):
     while True:
         time.sleep(1)
         # Thermomètre
@@ -111,8 +127,11 @@ def thread_therm(threadname, db_cap, therm):
             print("-------------------------------------------------------------")
             print('[THERMOMETRE] Temperature = {:6.2f}°C , Humidity = {:6.2f}%%'.format(temperature, humidite))
         db_cap.add_info( {'type':'thermometre', 'temperature':temperature, 'humidite':humidite} )
+        if not threadstop():
+            print('Arrêt du thread Thermometre',threadstop())
+            break
 
-def thread_serial(threadname, db_pos, sss, status_led):
+def thread_serial(threadstop, db_pos, sss, status_led):
     while True:
         try:
             # Lecture d'une ligne et décodage
@@ -131,11 +150,18 @@ def thread_serial(threadname, db_pos, sss, status_led):
         # Gestion des erreurs
         except(UnicodeError):
             print('Erreur : ',ligne)
+        if not threadstop():
+            print('Arrêt du thread Serial',threadstop())
+            break
+            
+def killsignal():
+    user_signal = False
+
+def shutdown():
+    check_call(['sudo', 'poweroff'])
 
 
-if __name__ == '__main__':
-    user_signal = True
-    
+if __name__ == '__main__':  
     ##############################################
     # 0. Initialisation des différents composants
     ##############################################
@@ -146,8 +172,11 @@ if __name__ == '__main__':
     # - gyroscope
     # - Baromètre
     # - Thermomètre
-    
+        
     # Initialisation des GPIO
+    powerLED = LEDplus(16)
+    powerLED.on()
+    
     green = LEDplus(22)    
     red = LEDplus(17)    
     yellow1 = LEDplus(23)
@@ -160,6 +189,9 @@ if __name__ == '__main__':
     for led in leds:
         led.off()
     
+    powerB = Button(19, hold_time=5) # Si appui 5sec
+    powerB.when_held = killsignal # Alors déclenchement du signal d'arrêt
+    
     green.blink(1) # Clignottement durant l'initialisation
     
     # Initialisation du port série
@@ -170,6 +202,7 @@ if __name__ == '__main__':
     # Connection à la base InfluxDB
     InfluxPosition = DataBase('position')
     InfluxCapteurs = DataBase('capteurs')
+    InfluxEvenment = DataBase('evenements')
     print(f'Connexions au serveur InfluxDB établie')
     
     # Socket serveur pour diffuser les trames aux clients
@@ -193,10 +226,12 @@ if __name__ == '__main__':
     # - attente des clients/socket
     # - gestion des messages clients
     
+    stop_thread = lambda : user_signal
+    
     # Ecoute du port série
     threadSerial_name = "Lecture du port série"
     threadSerial = threading.Thread( target=thread_serial,
-                                     args=(threadSerial_name, InfluxPosition, ServerSideSocket, yellow1) )
+                                     args=(stop_thread, InfluxPosition, ServerSideSocket, yellow1) )
     threadSerial.setName( threadSerial_name )
     threadSerial.start()
     print(f'Thread {threadSerial_name} démarré')
@@ -205,7 +240,7 @@ if __name__ == '__main__':
     # Ecoute des capteurs thread_capteurs(threadname, gyro, baro, therm):
     threads_capteurs = []
     for capteur in zip([icm20948, lps22hb, shtc3], ['Gyroscope', 'Baromètre', 'Thermomètre'], [thread_gyro, thread_baro, thread_therm]):
-        threadObj = threading.Thread( target=capteur[2], args=(capteur[1], InfluxCapteurs, capteur[0]) )
+        threadObj = threading.Thread( target=capteur[2], args=(stop_thread, InfluxCapteurs, capteur[0]) )
         threadObj.setName( capteur[1] )
         threads_capteurs.append(threadObj)
         threadObj.start()
@@ -214,7 +249,7 @@ if __name__ == '__main__':
     # Gestion des nouveaux clients
     threadNClient_name = "Gestion des nouveaux clients"
     threadNClient = threading.Thread( target=thread_new_clients,
-                                      args=(threadNClient_name, ServerSideSocket, yellow2) )
+                                      args=(stop_thread, ServerSideSocket, yellow2) )
     threadNClient.setName( threadNClient_name )
     threadNClient.start()
     print(f'Thread {threadNClient_name} démarré')
@@ -223,7 +258,7 @@ if __name__ == '__main__':
     # Ecoute des clients connectés
     threadLClient_name = "Ecoute des clients"
     threadLClient = threading.Thread( target=thread_listen_clients,
-                                      args=(threadLClient_name, ServerSideSocket) )
+                                      args=(stop_thread, ServerSideSocket, InfluxEvenment) )
     threadLClient.setName( threadLClient_name )
     threadLClient.start()
     print(f'Thread {threadLClient_name} démarré')
@@ -250,10 +285,17 @@ if __name__ == '__main__':
             print("Done.\nExiting.")
             for led in leds:
                 led.off()
-    
-    # TODO : gérer la fin (cloture des connexions)
-    threadClient.join()
-    threadSerial.join()
-    ServerSideSocket.close()
-    ClientInflux.close()
-    
+    else:
+        print('Kill signal has been pressed...')
+        powerLED.blink(0.2)
+        ServerSideSocket.close()
+        killsignal()
+        InfluxPosition.close()
+        InfluxCapteurs.close()
+        InfluxEvenment.close()
+        for led in leds:
+            led.off()
+        time.sleep(1)
+        print('Going to shut down now...')
+        powerLED.off()
+        # shutdown()

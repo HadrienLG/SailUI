@@ -1,4 +1,4 @@
 pynmea2
 influxdb
-
+gpiozero
 adafruit-circuitpython-shtc3

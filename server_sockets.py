@@ -92,7 +92,7 @@ class Server:
             if num_clients > 0 and status_led is not None:
                 status_led.train(num_clients)
     
-    def recv_clients(self):
+    def recv_clients(self, db):
         while True:
             # Surveillance des clients connectés
             for client in self.clients:
