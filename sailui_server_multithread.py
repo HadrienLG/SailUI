@@ -35,10 +35,6 @@ import socket
 import sys
 import threading
 
-# Other Libs
-import pynmea2
-from influxdb import InfluxDBClient,exceptions
-
 # Sensors
 from libs.LEDplus import LEDplus
 from libs.AD import ADS1015 # Amplificateur de gain
@@ -68,7 +64,7 @@ __influence__ = {'InfluxDB':'https://www.influxdata.com/blog/getting-started-pyt
                  'Server_Client':'https://stackoverflow.com/questions/43513337/multiclient-server-in-python-how-to-broadcast',
                  'NMEA parsing':'https://github.com/Knio/pynmea2',
                  'Waveshare Sense HAT': 'https://www.waveshare.com/wiki/Sense_HAT_(B)'}
-
+debug = False
 
 def thread_new_clients(threadname, sss, status_led):
     sss.wait_clients(status_led) # démarre le socket et attend les connections des clients
@@ -76,50 +72,62 @@ def thread_new_clients(threadname, sss, status_led):
 def thread_listen_clients(threadname, sss):
     sss.recv_clients() # écoute tous les messages venant des clients
 
-def thread_gyro(threadname, gyro):
+def thread_gyro(threadname, db_cap, gyro):
     while True:
         # Gyroscope
         gyro.icm20948update()
-        message = '[GYROSCOPE]\n' + \
-                  'Roll = {:.2f}, Pitch = {:.2f}, Yaw = {:.2f}\n'.format(icm20948.Roll, icm20948.Pitch, icm20948.Yaw) + \
-                  'Acceleration:  X = {}, Y = {}, Z = {}\n'.format(icm20948.Acceleration[0], icm20948.Acceleration[1], icm20948.Acceleration[2]) + \
-                  'Gyroscope:     X = {}, Y = {}, Z = {}\n'.format(icm20948.Gyroscope[0], icm20948.Gyroscope[1], icm20948.Gyroscope[2]) + \
-                  'Magnetic:      X = {}, Y = {}, Z = {}'.format(icm20948.Magnetic[0], icm20948.Magnetic[1], icm20948.Magnetic[2])
-        print("-------------------------------------------------------------")
-        print(message)
+        roll, pitch, yaw = icm20948.Roll, icm20948.Pitch, icm20948.Yaw
+        acceleration = icm20948.Acceleration
+        gyroscope = icm20948.Gyroscope
+        magnetic = icm20948.Magnetic
+        if debug:
+            message = '[GYROSCOPE]\n' + \
+                      'Roll = {:.2f}, Pitch = {:.2f}, Yaw = {:.2f}\n'.format(roll, pitch, yaw) + \
+                      'Acceleration:  X = {}, Y = {}, Z = {}\n'.format(acceleration[0], acceleration[1], acceleration[2]) + \
+                      'Gyroscope:     X = {}, Y = {}, Z = {}\n'.format(gyroscope[0], gyroscope[1], gyroscope[2]) + \
+                      'Magnetic:      X = {}, Y = {}, Z = {}'.format(magnetic[0], magnetic[1], magnetic[2])
+            print("-------------------------------------------------------------")
+            print(message)
+        db_cap.add_info( {'type':'gyroscope', 'roll':roll, 'pitch':pitch, 'yaw':yaw,
+                          'acceleration':acceleration, 'gyroscope':gyroscope, 'magnetic':magnetic} )
         
-def thread_baro(threadname, baro):
+def thread_baro(threadname, db_cap, baro):
     while True:
         time.sleep(5)
         # Baromètre
         baro.update()
-        print("-------------------------------------------------------------")
-        print('[BAROMETRE] Pressure = {:6.2f} hPa , Temperature = {:6.2f} °C'.format(baro.PRESS_DATA,baro.TEMP_DATA))
+        pression, temperature = baro.PRESS_DATA, baro.TEMP_DATA
+        if debug:
+            print("-------------------------------------------------------------")
+            print('[BAROMETRE] Pressure = {:6.2f} hPa , Temperature = {:6.2f} °C'.format(pression, temperature))
+        db_cap.add_info( {'type':'barometre', 'pression':pression, 'temperature':temperature} )
 
-def thread_therm(threadname, therm):
+def thread_therm(threadname, db_cap, therm):
     while True:
         time.sleep(1)
         # Thermomètre
         temperature, humidite = therm.measurements
-        print("-------------------------------------------------------------")
-        print('[THERMOMETRE] Temperature = {:6.2f}°C , Humidity = {:6.2f}%%'.format(temperature, humidite))
+        if debug:
+            print("-------------------------------------------------------------")
+            print('[THERMOMETRE] Temperature = {:6.2f}°C , Humidity = {:6.2f}%%'.format(temperature, humidite))
+        db_cap.add_info( {'type':'thermometre', 'temperature':temperature, 'humidite':humidite} )
 
-def thread_serial(threadname, cidb, sss, status_led):
+def thread_serial(threadname, db_pos, sss, status_led):
     while True:
         try:
             # Lecture d'une ligne et décodage
             ligne = serialPort.readline()
             phrase = ligne.decode("utf-8")
-            print(phrase)
+            if debug:
+                print('[SERIAL]',phrase)
             
             # Envoi à la base de données de la phrase NMEA brute
-            cidb.add_point(phrase)
+            db_pos.add_point(phrase)
 
-            # Si la phrase NMEA nous intéresse, on l'exploite
+            # Si la phrase NMEA nous intéresse, on la partage aux clients
             if 'RMC' in phrase:
                 cast_msg = str.encode(phrase)
                 sss.send_to_all_clients(cast_msg)
-        
         # Gestion des erreurs
         except(UnicodeError):
             print('Erreur : ',ligne)
@@ -160,8 +168,9 @@ if __name__ == '__main__':
     print(f'Port {port} connecté')
 
     # Connection à la base InfluxDB
-    ClientInflux = DataBase('position')
-    print(f'Connexion au serveur InfluxDB établie')
+    InfluxPosition = DataBase('position')
+    InfluxCapteurs = DataBase('capteurs')
+    print(f'Connexions au serveur InfluxDB établie')
     
     # Socket serveur pour diffuser les trames aux clients
     ServerSideSocket = Server('127.0.0.1', 10111)
@@ -185,40 +194,39 @@ if __name__ == '__main__':
     # - gestion des messages clients
     
     # Ecoute du port série
-    threadSerial_name = "Thread lecture du port série"
+    threadSerial_name = "Lecture du port série"
     threadSerial = threading.Thread( target=thread_serial,
-                                     args=(threadSerial_name, ClientInflux, ServerSideSocket, yellow1) )
+                                     args=(threadSerial_name, InfluxPosition, ServerSideSocket, yellow1) )
     threadSerial.setName( threadSerial_name )
     threadSerial.start()
-    print(f'{threadSerial_name} démarré')
+    print(f'Thread {threadSerial_name} démarré')
     yellow1.blink(0.5)
     
     # Ecoute des capteurs thread_capteurs(threadname, gyro, baro, therm):
     threads_capteurs = []
     for capteur in zip([icm20948, lps22hb, shtc3], ['Gyroscope', 'Baromètre', 'Thermomètre'], [thread_gyro, thread_baro, thread_therm]):
-        threadName = capteur[1]
-        threadObj = threading.Thread( target=capteur[2], args=(threadName, capteur[0]) )
-        threadObj.setName( threadName )
+        threadObj = threading.Thread( target=capteur[2], args=(capteur[1], InfluxCapteurs, capteur[0]) )
+        threadObj.setName( capteur[1] )
         threads_capteurs.append(threadObj)
         threadObj.start()
-        print(f'{threadName} démarré')    
+        print(f'Thread {capteur[1]} démarré')    
     
     # Gestion des nouveaux clients
-    threadNClient_name = "Thread gestion des clients"
+    threadNClient_name = "Gestion des nouveaux clients"
     threadNClient = threading.Thread( target=thread_new_clients,
                                       args=(threadNClient_name, ServerSideSocket, yellow2) )
     threadNClient.setName( threadNClient_name )
     threadNClient.start()
-    print(f'{threadNClient_name} démarré')
+    print(f'Thread {threadNClient_name} démarré')
     yellow2.blink(0.5)
     
     # Ecoute des clients connectés
-    threadLClient_name = "Thread gestion des clients"
+    threadLClient_name = "Ecoute des clients"
     threadLClient = threading.Thread( target=thread_listen_clients,
                                       args=(threadLClient_name, ServerSideSocket) )
     threadLClient.setName( threadLClient_name )
     threadLClient.start()
-    print(f'{threadLClient_name} démarré')
+    print(f'Thread {threadLClient_name} démarré')
     
     threads = [threadSerial, threadNClient, threadLClient] + threads_capteurs
     
