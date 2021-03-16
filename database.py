@@ -44,11 +44,10 @@ class DataBase():
             print('Base de données {} créée'.format(base_name))
         self.client.switch_database(base_name)
 
-    def add_point(nmea_phrase):
-        message = pynmea2.parse(phrase)
+    def add_point(self, nmea_phrase):
+        message = pynmea2.parse(nmea_phrase)
         msg = dict(zip([x[0] for x in message.fields], message.data))
-        valid = (message.latitude != 0 and message.longitude != 0)
-        if message.XX == 'RMC' and valid:
+        if 'RMC' in message.identifier() and (message.latitude != 0 and message.longitude != 0):
             charge = {"measurement":"RMC",
                       "tags":{"talker": message.talker,
                               "status":msg['Status'],
@@ -62,7 +61,7 @@ class DataBase():
                           "heading":float(msg['True Course']) if len(msg['True Course'])>0 else float(0)
                           }
                       }
-        elif message.XXX == "GLL" and valid:
+        elif "GLL" in message.identifier() and (message.latitude != 0 and message.longitude != 0):
             try:
                 moment = datetime.datetime.strptime(msg['Timestamp'],'%H%M%S.%f').isoformat()
             except:

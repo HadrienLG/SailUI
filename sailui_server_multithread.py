@@ -44,8 +44,11 @@ from libs.LEDplus import LEDplus
 from libs.AD import ADS1015 # Amplificateur de gain
 from libs.ICM20948 import ICM20948 # Giroscope
 from libs.LPS22HB import LPS22HB # Pression, température
-from libs.SHTC3 import SHTC3 # Température, humidité
 from libs.TCS34725 import TCS34725 # Couleurs
+#from libs.SHTC3 import SHTC3 # Température, humidité
+import busio
+import board
+import adafruit_shtc3
 
 # Project modules
 from server_sockets import Server, Client
@@ -71,11 +74,9 @@ def thread_new_clients(threadname, sss, status_led):
     sss.wait_clients(status_led) # démarre le socket et attend les connections des clients
 
 def thread_listen_clients(threadname, sss):
-    sss.rcv_clients() # écoute tous les messages venant des clients
+    sss.recv_clients() # écoute tous les messages venant des clients
 
 def thread_capteurs(threadname, gyro, baro, therm):
-    MotionVal = [0.0 for _ in range(0,9)]
-    
     PRESS_DATA = 0.0
     TEMP_DATA = 0.0
     u8Buf = [0,0,0]
@@ -112,8 +113,7 @@ def thread_capteurs(threadname, gyro, baro, therm):
         print('Pressure = %6.2f hPa , Temperature = %6.2f °C\r\n'%(PRESS_DATA,TEMP_DATA))
 
         # Thermomètre
-        temperature = therm.SHTC3_Read_Temperature()
-        humidite = therm.SHTC3_Read_Humidity()
+        temperature, humidite = therm.measurements
         print('Temperature = {%6.2}f°C , Humidity = {%6.2}f%%'.format(temperature, humidite))
 
 def thread_serial(threadname, cidb, sss, status_led):
@@ -122,6 +122,7 @@ def thread_serial(threadname, cidb, sss, status_led):
             # Lecture d'une ligne et décodage
             ligne = serialPort.readline()
             phrase = ligne.decode("utf-8")
+            print(phrase)
             
             # Envoi à la base de données de la phrase NMEA brute
             cidb.add_point(phrase)
@@ -179,9 +180,11 @@ if __name__ == '__main__':
     print("Socket ouvert à l'adresse 127.0.0.1:10111")
     
     # Initialisation des capteurs
+    MotionVal = [0.0 for _ in range(0,9)]
     icm20948 = ICM20948() # Gyroscope
     lps22hb = LPS22HB() # Pression/température
-    shtc3 = SHTC3() # Température/humidité
+    i2c = busio.I2C(board.SCL, board.SDA)
+    shtc3 = adafruit_shtc3.SHTC3(i2c) # Température/humidité
     
     ##############################################
     # 1. Lancement des threads
