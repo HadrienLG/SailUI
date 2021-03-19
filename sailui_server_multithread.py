@@ -4,7 +4,7 @@ SailUI - GPS data from serial port parsed and send to InfluxDB
 
 MIT License
 
-Copyright (c) 2020 HadrienLG
+Copyright (c) 2021 HadrienLG
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -142,7 +142,7 @@ def thread_serial(threadstop, db_pos, sss, status_led):
             # Lecture d'une ligne et décodage
             ligne = serialPort.readline()
             phrase = ligne.decode("utf-8")
-            logging.debug('[SERIAL]',phrase)
+            logging.debug('[SERIAL] {}'.format(phrase))
             
             # Envoi à la base de données de la phrase NMEA brute
             db_pos.add_point(phrase)
@@ -290,7 +290,8 @@ if __name__ == '__main__':
             for thr in threads:                
                 if not thr.is_alive():
                     red.on()
-                    logging.warning('[',time.ctime(),']', thr.getName(), thr.is_alive())            
+                    message = '[{}] {} {}'.format(time.ctime(), thr.getName(), thr.is_alive())
+                    logging.warning(message)            
         except (KeyboardInterrupt, SystemExit): #when you press ctrl+c
             user_signal = False
             ServerSideSocket.close()

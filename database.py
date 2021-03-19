@@ -27,6 +27,7 @@ SOFTWARE.
 
 # Generic/Built-in
 import datetime
+import logging
 
 # Other Libs
 import pynmea2
@@ -81,10 +82,12 @@ class DataBase():
                                   }
                           }
             else:
-                logging.warning('Pas de recette pour gérer la phrase ',message)
-            self.client.write_points([charge])
+                logging.warning('Pas de recette pour gérer la phrase {}'.format(message))
+            if charge:
+                self.client.write_points([charge])
         except pynmea2.ParseError:
-            logging.exception('')
+            pass
+        except UnboundLocalError:
             pass
 
     def add_info(self, charge):
