@@ -1,0 +1,16 @@
+[Unit]
+Description=SailUI server - GPS and sensors log and connect to HUDisplays
+After=multi-user.target
+
+[Service]
+WorkingDirectory=/home/pi/SailUI
+Type=idle
+User=pi
+ExecStart=/usr/bin/python3 /home/pi/SailUI/sailui_server_multithread.py 
+StartLimitBurst=2
+StartLimitInterval=30
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

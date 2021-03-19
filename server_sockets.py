@@ -8,6 +8,7 @@ import threading
 import socket
 import time
 import sys
+import logging
 
 # classe des clients connectés au serveur dans des Thread séparés
 class Client(threading.Thread):
@@ -28,6 +29,7 @@ class Client(threading.Thread):
             data = self.connection.recv(1024)
             if data :
                 self.connection.sendall(data)
+                logging.info('Envoi des données à tous les clients',data)
             else :
                 break
         self.connection.close()
@@ -48,7 +50,7 @@ class Server:
                 client.connection.send(msg)
             except:
                 self.clients.remove(client)
-                print(f'{client} déconnecté')
+                logging.info(f'{client} déconnecté')
 
     def send_to_client(self, ip, port, msg):
         for client in self.clients :
@@ -57,7 +59,7 @@ class Server:
                     client.connection.send(msg)
                 except:
                     self.clients.remove(client)
-                    print(f'{client} déconnecté')
+                    logging.info(f'{client} déconnecté')
 
     def open_socket(self):
         try:
@@ -66,9 +68,10 @@ class Server:
         except socket.error as e:
             if self.server:
                 self.server.close()
+            logging.exception('')
             sys.exit(1)
         except OSError:
-            print('Merci de redémarrer les clients')
+            logging.exception('Merci de redémarrer les clients')
 
     def wait_clients(self, status_led=None):
         #TODO : à threader en parallèle de l'écoute des messages clients
@@ -84,9 +87,9 @@ class Server:
             num_clients = len(self.clients)
             
             # Supervision des clients connectés
-            print('[{}] Client(s) connecté(s) : {}'.format(time.ctime(),num_clients))
+            logging.info('[{}] Client(s) connecté(s) : {}'.format(time.ctime(),num_clients))
             for client in self.clients:
-                print(client)
+                logging.info(client)
                 
             # Signalisation sur la led de status
             if num_clients > 0 and status_led is not None:
@@ -98,9 +101,9 @@ class Server:
             for client in self.clients:
                 try:
                     message = client.connection.recv(1024).decode()
-                    print(f'{client} dit : {message}')
+                    logging.info(f'{client} dit : {message}')
                 except:
-                    print(f'{client} injoignable')
+                    logging.info(f'{client} injoignable')
                     self.clients.remove(client)
-                    print(f'{client} déconnecté')
+                    logging.info(f'{client} déconnecté')
             

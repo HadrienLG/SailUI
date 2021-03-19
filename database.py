@@ -38,10 +38,10 @@ class DataBase():
         self.client = InfluxDBClient(host='localhost', port=8086)
         all_influxDB = self.client.get_list_database()
         if base_name in [list(x.values())[0] for x in self.client.get_list_database()]:
-             print('Base de données {} disponible'.format(base_name))
+             logging.info('Base de données {} disponible'.format(base_name))
         else:
             self.client.create_database(base_name)
-            print('Base de données {} créée'.format(base_name))
+            logging.info('Base de données {} créée'.format(base_name))
         self.client.switch_database(base_name)
 
     def add_point(self, nmea_phrase):
@@ -81,9 +81,10 @@ class DataBase():
                                   }
                           }
             else:
-                return
+                logging.warning('Pas de recette pour gérer la phrase ',message)
             self.client.write_points([charge])
         except pynmea2.ParseError:
+            logging.exception('')
             pass
 
     def add_info(self, charge):
@@ -130,6 +131,6 @@ class DataBase():
                           }
                   }
         else:
-            print('Erreur d''info capteur') # raise Exception('Information non prise en charge pour envoi à la base de données')
+            logging.warning('Erreur d''info capteur') # raise Exception('Information non prise en charge pour envoi à la base de données')
             return
         self.client.write_points([charge])
