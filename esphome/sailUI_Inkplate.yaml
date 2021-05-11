@@ -170,21 +170,7 @@ binary_sensor:
       mcp23xxx: mcp23017_hub
       number: 12
 
-time:
-  - platform: sntp
-    id: esptime
 
-font:
-  - file: "Helvetica.ttf"
-    id: helvetica_96
-    size: 96
-  - file: "Helvetica.ttf"
-    id: helvetica_48
-    size: 48
-
-  - file: "Helvetica.ttf"
-    id: helvetica_24
-    size: 24
 
 
  

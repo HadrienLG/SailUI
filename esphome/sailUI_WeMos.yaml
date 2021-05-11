@@ -1,0 +1,50 @@
+esphome:
+  name: sailuiwemos
+  platform: ESP32
+  board: lolin32
+
+web_server:
+  port: 80
+
+wifi:
+  ssid: "SailUI"
+  password: "openplotter"
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Sauiluiwemos Fallback Hotspot"
+    password: "6mfwfydp9HzC"
+
+captive_portal:
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+
+ota:
+
+mqtt:
+  id : mqtt_client
+  broker: 10.3.141.1
+  port: 1883
+
+
+  text_sensor:
+  - platform: mqtt_subscribe
+    name: "Latitude"
+    id: textLat
+    topic: gps/info/latitude
+  - platform: mqtt_subscribe
+    name: "Longitude"
+    id: textLong
+    topic: gps/info/longitude
+  - platform: mqtt_subscribe
+    name: "Vitesse"
+    id: textVit
+    topic: gps/info/vitesse
+  - platform: mqtt_subscribe
+    name: "Cap"
+    id: textCap
+    topic: gps/info/cap
