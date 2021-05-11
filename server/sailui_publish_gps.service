@@ -1,0 +1,16 @@
+[Unit]
+Description=SailUI server - GPS serial to mqtt and influxdb
+After=multi-user.target
+
+[Service]
+WorkingDirectory=/home/pi/SailUI/server
+Type=idle
+User=pi
+ExecStart=/usr/bin/python3 /home/pi/SailUI/server/sailui_publish_gps.py 
+StartLimitBurst=2
+StartLimitInterval=30
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
