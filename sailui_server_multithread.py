@@ -218,7 +218,7 @@ if __name__ == '__main__':
     logging.info(f'Connexions au serveur InfluxDB établie')
     
     # Socket serveur pour diffuser les trames aux clients
-    ServerSideSocket = Server('127.0.0.1', 10111)
+    ServerSideSocket = Server('0.0.0.0', 10111)
     logging.info("Socket ouvert à l'adresse 127.0.0.1:10111")
     
     # Initialisation des capteurs
