@@ -1,0 +1,105 @@
+esphome:
+  name: sailuim5stack
+  platform: ESP32
+  board: m5stack-fire
+
+wifi:
+  ssid: "SailUI"
+  password: "openplotter"
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Sailuim5Stack Fallback Hotspot"
+    password: "7Ol7h74ejkII"
+
+captive_portal:
+
+# Enable logging
+logger:
+
+
+ota:
+
+
+mqtt:
+  id : mqtt_client
+  broker: 10.3.141.1
+  port: 1883
+
+  
+web_server:
+  port: 80
+
+
+time:
+  - platform: sntp
+    id: esptime
+
+
+spi: 
+  clk_pin: 18
+  mosi_pin: 23
+  miso_pin: 19
+
+
+display:
+  - platform: ili9341
+    model: M5Stack
+    cs_pin: 14
+    dc_pin: 27
+    led_pin: 32  ### see note below ###
+    reset_pin: 33
+
+    lambda: |-
+      it.fill(COLOR_BLACK);
+      it.printf(0, 25, id(helvetica_24), id(my_blue), TextAlign::LEFT, "Lat: %s", id(textLat).state.c_str());   
+      it.printf(0, 50, id(helvetica_24), id(my_green), TextAlign::LEFT, "Long: %s", id(textLong).state.c_str());  
+      it.printf(0, 75, id(helvetica_24), id(my_green), TextAlign::LEFT, "Vitesse: %s", id(textVit).state.c_str());  
+      it.printf(0, 100, id(helvetica_24), id(my_red), TextAlign::LEFT, "Cap: %s", id(textCap).state.c_str());   
+
+text_sensor:
+  - platform: mqtt_subscribe
+    name: "Latitude"
+    id: textLat
+    topic: gps/info/latitude
+  - platform: mqtt_subscribe
+    name: "Longitude"
+    id: textLong
+    topic: gps/info/longitude
+  - platform: mqtt_subscribe
+    name: "Vitesse"
+    id: textVit
+    topic: gps/info/vitesse
+  - platform: mqtt_subscribe
+    name: "Cap"
+    id: textCap
+    topic: gps/info/cap
+
+
+
+font:
+  - file: "Helvetica.ttf"
+    id: helvetica_8
+    size: 8
+  - file: "Helvetica.ttf"
+    id: helvetica_12
+    size: 12
+
+  - file: "Helvetica.ttf"
+    id: helvetica_24
+    size: 24
+    
+
+color:
+  - id: my_red
+    red: 100%
+    green: 3%
+    blue: 5%
+  - id: my_blue
+    red: 3%
+    green: 5%
+    blue: 100%
+  - id: my_green
+    red: 5%
+    green: 100%
+    blue: 3%

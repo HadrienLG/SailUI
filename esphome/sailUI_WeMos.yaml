@@ -1,0 +1,94 @@
+esphome:
+  name: sailuiwemos
+  platform: ESP32
+  board: lolin32
+
+web_server:
+  port: 80
+
+wifi:
+  ssid: "SailUI"
+  password: "openplotter"
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Sauiluiwemos Fallback Hotspot"
+    password: "6mfwfydp9HzC"
+
+captive_portal:
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+
+ota:
+
+mqtt:
+  id : mqtt_client
+  broker: 10.3.141.1
+  port: 1883
+
+i2c:
+  sda: 5
+  scl: 4
+
+display:
+  - platform: ssd1306_i2c
+    model: "SSD1306 128x64"
+    #reset_pin: D0
+    address: 0x3C
+    lambda: |-
+      it.fill(COLOR_BLACK);
+      it.printf(0, 10, id(helvetica_12), id(my_blue), TextAlign::LEFT, "Lat: %s", id(textLat).state.c_str());   
+      it.printf(0, 20, id(helvetica_12), id(my_green), TextAlign::LEFT, "Long: %s", id(textLong).state.c_str());  
+      it.printf(0, 30, id(helvetica_12), id(my_green), TextAlign::LEFT, "Vitesse: %s", id(textVit).state.c_str());  
+      it.printf(0, 40, id(helvetica_12), id(my_red), TextAlign::LEFT, "Cap: %s", id(textCap).state.c_str());   
+
+text_sensor:
+  - platform: mqtt_subscribe
+    name: "Latitude"
+    id: textLat
+    topic: gps/info/latitude
+  - platform: mqtt_subscribe
+    name: "Longitude"
+    id: textLong
+    topic: gps/info/longitude
+  - platform: mqtt_subscribe
+    name: "Vitesse"
+    id: textVit
+    topic: gps/info/vitesse
+  - platform: mqtt_subscribe
+    name: "Cap"
+    id: textCap
+    topic: gps/info/cap
+
+
+
+font:
+  - file: "Helvetica.ttf"
+    id: helvetica_8
+    size: 8
+  - file: "Helvetica.ttf"
+    id: helvetica_12
+    size: 12
+
+  - file: "Helvetica.ttf"
+    id: helvetica_24
+    size: 24
+    
+
+color:
+  - id: my_red
+    red: 100%
+    green: 3%
+    blue: 5%
+  - id: my_blue
+    red: 3%
+    green: 5%
+    blue: 100%
+  - id: my_green
+    red: 5%
+    green: 100%
+    blue: 3%
