@@ -81,8 +81,7 @@ class DataBase():
                                   "FAA mode":msg['FAA mode indicator']
                                   }
                           }
-            else:
-                logging.warning('Pas de recette pour gérer la phrase {}'.format(message))
+            
             if charge:
                 self.client.write_points([charge])
         except pynmea2.ParseError:

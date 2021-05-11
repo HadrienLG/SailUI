@@ -71,8 +71,8 @@ __influence__ = {'InfluxDB':'https://www.influxdata.com/blog/getting-started-pyt
                  'Waveshare Sense HAT': 'https://www.waveshare.com/wiki/Sense_HAT_(B)'}
 
 # Logging
-logging.basicConfig(filename='sailui_server.log', level=logging.DEBUG)
-logging.info('Démarrage de SailUI-Server, début de journalisation')
+logging.basicConfig(filename='sailui_publish_sensors.log', level=logging.DEBUG)
+logging.info('Démarrage de SailUI-Publish sensors, début de journalisation')
 
 user_signal = True # variable global de boucle infinie
 axes = ['x','y','z']
@@ -98,13 +98,12 @@ def thread_gyro(threadstop, db_cap, mqttclient, gyro):
         for ax in zip(['roll', 'pitch', 'yaw'], [roll, pitch, yaw]):
             result = mqttclient.publish(f'gyro/{ax[0]}',ax[1]) # result: [code, message_id]
             if result[0] != 0:
-                logging.exception(f'Echec de l''envoi du message au broker')
+                logging.exception(f"Gyroscope, échec de l'envoi du message roll/pich/yaw au broker")
         for field in zip(['acceleration', 'gyroscope', 'magnetic'], [acceleration, gyroscope, magnetic]):
             for ax in range(0,3):
                 result = mqttclient.publish(f'gyro/{field[0]}/{axes[ax]}',field[1][ax]) # result: [code, message_id]
                 if result[0] != 0:
-                    logging.exception(f'Echec de l''envoi du message au broker')
-        
+                    logging.exception(f"Gyroscope, échec de l'envoi du message au broker")
         
         if not threadstop():
             logging.info('Arrêt du thread Gyroscope')
@@ -123,11 +122,11 @@ def thread_baro(threadstop, db_cap, mqttclient, baro):
         # MQTT
         result = mqttclient.publish(f'baro/pression',pression) # result: [code, message_id]
         if result[0] != 0:
-            logging.exception(f'Echec de l''envoi du message au broker')
+            logging.exception(f"Barometre, échec de l'envoi du message pression au broker")
         
         result = mqttclient.publish(f'baro/temperature', temperature) # result: [code, message_id]
         if result[0] != 0:
-            logging.exception(f'Echec de l''envoi du message au broker')
+            logging.exception(f"Barometre, échec de l'envoi du message temperature au broker")
         
         if not threadstop():
             logging.info('Arrêt du thread Barometre')
@@ -145,11 +144,11 @@ def thread_therm(threadstop, db_cap, mqttclient, therm):
         # MQTT
         result = mqttclient.publish(f'therm/temperature',temperature) # result: [code, message_id]
         if result[0] != 0:
-            logging.exception(f'Echec de l''envoi du message au broker')
+            logging.exception(f"Thermometre, échec de l'envoi du message temperature au broker")
         
         result = mqttclient.publish(f'therm/humidite', humidite) # result: [code, message_id]
         if result[0] != 0:
-            logging.exception(f'Echec de l''envoi du message au broker')
+            logging.exception(f"Thermometre, échec de l'envoi du message au broker")
         
         if not threadstop():
             logging.info('Arrêt du thread Thermometre')
@@ -160,16 +159,12 @@ def killsignal():
     logging.info('Lancement du kill signal')
     user_signal = False
 
-def shutdown():
-    logging.info('Extinction demandée')
-    check_call(['sudo', 'poweroff'])
-
 # [MQTT] The callback for when the client receives a CONNACK response from the server.
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
-        print('Connected to MQTT broker successfully!')
+        logging.info('Connected to MQTT broker successfully!')
     else:
-        print("Connected with result code "+mqtt.connack_string(rc))
+        logging.warning("Connected with result code "+mqtt.connack_string(rc))
 
     # Subscribing in on_connect() means that if we lose the connection and
     # reconnect then subscriptions will be renewed.
@@ -197,7 +192,7 @@ if __name__ == '__main__':
     logging.debug('Initialisation du programme')
         
     # Initialisation des GPIO
-    yellow2 = LEDplus(24)
+    yellow2 = LEDplus(hardware.leds['yellow2'])
     
     yellow2.on()
     time.sleep(1)
@@ -205,7 +200,7 @@ if __name__ == '__main__':
     
     # Connection à la base InfluxDB
     InfluxCapteurs = DataBase('capteurs')
-    logging.info(f'Connexion au serveur InfluxDB établie')
+    logging.info(f'InfluxDB, connexions au serveur établie')
     
     # Initialisation des capteurs
     MotionVal = [0.0 for _ in range(0,9)]
@@ -222,6 +217,8 @@ if __name__ == '__main__':
     client.on_publish = on_publish
     client.connect("127.0.0.1", 1883, 60)
     client.loop_start()
+    logging.info(f'MQTT, connexions au serveur établie')
+
     
     ##############################################
     # 1. Lancement des threads
@@ -239,7 +236,8 @@ if __name__ == '__main__':
         threadObj.setName( capteur[1] )
         threads_capteurs.append(threadObj)
         threadObj.start()
-        logging.info(f'Thread {capteur[1]} démarré')    
+        logging.info(f'Thread {capteur[1]} démarré')
+    yellow2.blink(0.5)
         
     ##############################################
     # 2. Supervision des threads
@@ -255,15 +253,11 @@ if __name__ == '__main__':
                     logging.warning(message)            
         except (KeyboardInterrupt, SystemExit): #when you press ctrl+c
             user_signal = False
-            ClientInflux.close()
+            InfluxCapteurs.close()
             logging.info("Done.\nExiting.")
-            for led in leds:
-                led.off()
+            yellow2.off()
     else:
         print('Kill signal has been pressed...')
         killsignal()
         InfluxCapteurs.close()
-        InfluxEvenment.close()
-        time.sleep(1)
         logging.info('Going to shut down now...')
-        # shutdown()

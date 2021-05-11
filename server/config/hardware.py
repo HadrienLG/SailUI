@@ -9,6 +9,6 @@ leds = {'power':16,
          'yellow1':23,
          'yellow2':24}
 
-buttons = {'powerB':19,
+buttons = {'power':19,
            'action':26}
 

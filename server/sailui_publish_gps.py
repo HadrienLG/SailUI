@@ -62,11 +62,11 @@ __influence__ = {'InfluxDB':'https://www.influxdata.com/blog/getting-started-pyt
                  'Server_Client':'https://stackoverflow.com/questions/43513337/multiclient-server-in-python-how-to-broadcast',
                  'NMEA parsing':'https://github.com/Knio/pynmea2',
                  'Waveshare Sense HAT': 'https://www.waveshare.com/wiki/Sense_HAT_(B)',
-                 '': ''}
+                 'MQTT': 'https://pypi.org/project/paho-mqtt/'}
 
 # Logging
 logging.basicConfig(filename='sailui_publish_gps.log', level=logging.DEBUG)
-logging.info('Démarrage de SailUI-Server, début de journalisation')
+logging.info('Démarrage de SailUI-Publish GPS, début de journalisation')
 
 
 def thread_serial(threadstop, db_pos, mqttclient, status_led):
@@ -88,7 +88,7 @@ def thread_serial(threadstop, db_pos, mqttclient, status_led):
                 topic = f"gps/{id_nmea}"
                 result = mqttclient.publish(topic,phrase) # result: [code, message_id]
                 if result[0] != 0:
-                    logging.exception(f'Echec de l''envoi du message NMEA {id_nmea} au broker')
+                    logging.exception(f"Echec de l'envoi du message NMEA {id_nmea} au broker")
                 if id_nmea == 'RMC':
                     nmeaRMC = pynmea2.parse(phrase)
                     msgs = [{'topic':"gps/info/latitude", 'payload':nmeaRMC.latitude},
@@ -98,11 +98,11 @@ def thread_serial(threadstop, db_pos, mqttclient, status_led):
                     for msg in msgs:
                         result = mqttclient.publish(msg['topic'],msg['payload'])
                         if result[0] != 0:
-                            logging.exception('Echec de l''envoi du message NMEA RMC au broker')
+                            logging.exception(f"Echec de l'envoi du message NMEA RMC au broker: {msg}")
                     
         # Gestion des erreurs
         except(UnicodeError):
-            logging.exception('Erreur : ',ligne)
+            logging.exception('ThreadSerial, erreur Unicode: ',ligne)
         if not threadstop():
             logging.info('Arrêt du thread Serial')
             print('Arrêt du thread Serial',threadstop())
@@ -119,9 +119,9 @@ def shutdown():
 # [MQTT] The callback for when the client receives a CONNACK response from the server.
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
-        print('Connected to MQTT broker successfully!')
+        logging.info('Connected to MQTT broker successfully!')
     else:
-        print("Connected with result code "+mqtt.connack_string(rc))
+        logging.warning("Connected with result code " + mqtt.connack_string(rc))
 
     # Subscribing in on_connect() means that if we lose the connection and
     # reconnect then subscriptions will be renewed.
@@ -160,11 +160,11 @@ if __name__ == '__main__':
     # Initialisation du port série
     port = "/dev/serial0"
     serialPort = serial.Serial(port, baudrate = 9600, timeout = 0.5)
-    logging.info(f'Port {port} connecté')
+    logging.info(f'Série, port {port} connecté')
 
     # Connection à la base InfluxDB
     InfluxPosition = DataBase('position')
-    logging.info(f'Connexions au serveur InfluxDB établie')
+    logging.info(f'InfluxDB, connexions au serveur établie')
     
     # Client MQTT
     client = mqtt.Client()
@@ -173,6 +173,7 @@ if __name__ == '__main__':
     client.on_publish = on_publish
     client.connect("127.0.0.1", 1883, 60)
     client.loop_start()
+    logging.info(f'MQTT, connexions au serveur établie')
     
     ##############################################
     # 1. Lancement des threads
@@ -203,11 +204,9 @@ if __name__ == '__main__':
                 logging.warning(message)
         except (KeyboardInterrupt, SystemExit): #when you press ctrl+c
             user_signal = False
-            ServerSideSocket.close()
-            ClientInflux.close()
+            InfluxPosition.close()
+            yellow1.off()
             logging.info("Done.\nExiting.")
-            for led in leds:
-                led.off()
     else:
         print('Kill signal has been pressed...')
         killsignal()
