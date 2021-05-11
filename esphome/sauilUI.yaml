@@ -1,0 +1,191 @@
+esphome:
+  name: sailuiinkplate
+  platform: ESP32
+  board: esp-wrover-kit
+
+wifi:
+  ssid: "SailUI"
+  password: "openplotter"
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Sailuiinkplate Fallback Hotspot"
+    password: "rsWKgr6GHeMz"
+
+captive_portal:
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+
+ota:
+
+i2c:
+
+mcp23017:
+  - id: mcp23017_hub
+    address: 0x20
+
+
+display:
+  - platform: inkplate6
+    id: inkplate_display
+    greyscale: false
+    partial_updating: true
+    update_interval: 20s
+
+    ckv_pin: 32
+    sph_pin: 33
+
+    spv_pin:
+      mcp23xxx: mcp23017_hub
+      number: 2
+    gmod_pin:
+      mcp23xxx: mcp23017_hub
+      number: 1
+    gpio0_enable_pin:
+      mcp23xxx: mcp23017_hub
+      number: 8
+    oe_pin:
+      mcp23xxx: mcp23017_hub
+      number: 0
+    powerup_pin:
+      mcp23xxx: mcp23017_hub
+      number: 4
+    wakeup_pin:
+      mcp23xxx: mcp23017_hub
+      number: 3
+    vcom_pin:
+      mcp23xxx: mcp23017_hub
+      number: 5
+    lambda: |-
+        it.fill(COLOR_ON);
+
+        it.printf(100, 100, id(helvetica_24), COLOR_OFF, TextAlign::LEFT, "Lat: %s", id(textLat).state.c_str());   
+        it.printf(100, 150, id(helvetica_24), COLOR_OFF, TextAlign::LEFT, "Long: %s", id(textLong).state.c_str());  
+        it.printf(100, 200, id(helvetica_24), COLOR_OFF, TextAlign::LEFT, "Vitesse: %s", id(textVit).state.c_str());  
+        it.printf(100, 250, id(helvetica_24), COLOR_OFF, TextAlign::LEFT, "Cap: %s", id(textCap).state.c_str());   
+        
+        it.strftime(400, 300, id(helvetica_48), COLOR_OFF, TextAlign::CENTER, "%Y-%m-%d", id(esptime).now());
+        it.strftime(400, 400, id(helvetica_96), COLOR_OFF, TextAlign::CENTER, "%H:%M", id(esptime).now());
+
+        if (id(system_status).state) {
+          it.print(700, 100, id(helvetica_48), COLOR_OFF, TextAlign::TOP_RIGHT, "Online");
+        } else {
+          it.print(700, 100, id(helvetica_48), COLOR_OFF, TextAlign::TOP_RIGHT, "Offline");
+        }
+
+
+mqtt:
+  id : mqtt_client
+  broker: 10.3.141.1
+  port: 1883
+
+ 
+
+text_sensor:
+  - platform: mqtt_subscribe
+    name: "Latitude"
+    id: textLat
+    topic: gps/info/latitude
+  - platform: mqtt_subscribe
+    name: "Longitude"
+    id: textLong
+    topic: gps/info/longitude
+  - platform: mqtt_subscribe
+    name: "Vitesse"
+    id: textVit
+    topic: gps/info/vitesse
+  - platform: mqtt_subscribe
+    name: "Cap"
+    id: textCap
+    topic: gps/info/cap
+
+switch:
+  - platform: restart
+    name: "Inkplate Reboot"
+    id: reboot
+
+  - platform: gpio
+    id: battery_read_mosfet
+    pin:
+      mcp23xxx: mcp23017_hub
+      number: 9
+      inverted: true
+
+  - platform: template
+    name: "Inkplate Greyscale mode"
+    lambda: return id(inkplate_display).get_greyscale();
+    turn_on_action:
+      - lambda: id(inkplate_display).set_greyscale(true);
+    turn_off_action:
+      - lambda: id(inkplate_display).set_greyscale(false);
+
+  - platform: template
+    name: "Inkplate Partial Updating"
+    lambda: return id(inkplate_display).get_partial_updating();
+    turn_on_action:
+      - lambda: id(inkplate_display).set_partial_updating(true);
+    turn_off_action:
+      - lambda: id(inkplate_display).set_partial_updating(false);
+
+
+sensor:
+  - platform: adc
+    id: battery_voltage
+    update_interval: never
+    attenuation: 11db
+    pin: 35
+  - platform: template
+    name: "Inkplate Battery Voltage"
+    lambda: |-
+      id(battery_read_mosfet).turn_on();
+      delay(1);
+      float adc = id(battery_voltage).sample();
+      id(battery_read_mosfet).turn_off();
+      return adc;
+    filters:
+      - multiply: 2
+
+binary_sensor:
+  - platform: status
+    name: "Inkplate Status"
+    id: system_status
+
+  - platform: gpio
+    name: "Inkplate Touch Pad 1"
+    pin:
+      mcp23xxx: mcp23017_hub
+      number: 10
+  - platform: gpio
+    name: "Inkplate Touch Pad 2"
+    pin:
+      mcp23xxx: mcp23017_hub
+      number: 11
+  - platform: gpio
+    name: "Inkplate Touch Pad 3"
+    pin:
+      mcp23xxx: mcp23017_hub
+      number: 12
+
+time:
+  - platform: sntp
+    id: esptime
+
+font:
+  - file: "Helvetica.ttf"
+    id: helvetica_96
+    size: 96
+  - file: "Helvetica.ttf"
+    id: helvetica_48
+    size: 48
+
+  - file: "Helvetica.ttf"
+    id: helvetica_24
+    size: 24
+
+
+ 
+  
