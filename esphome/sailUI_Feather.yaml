@@ -43,21 +43,36 @@ display:
     reset_pin: 4
 
     lambda: |-
+      // DISPLAY - supposed to be 320x240 px
       it.fill(COLOR_BLACK);
-      it.printf(0, 25, id(helvetica_24), id(my_blue), TextAlign::LEFT, "Lat: %s", id(textLat).state.c_str());   
-      it.printf(0, 50, id(helvetica_24), id(my_green), TextAlign::LEFT, "Long: %s", id(textLong).state.c_str());  
-      it.printf(0, 75, id(helvetica_24), id(my_green), TextAlign::LEFT, "Vitesse: %s", id(textVit).state.c_str());  
-      it.printf(0, 100, id(helvetica_24), id(my_red), TextAlign::LEFT, "Cap: %s", id(textCap).state.c_str());   
+
+      // HEADER - Draw a filled rectangle as a header.
+      it.strftime(0, 10, id(helvetica_8), id(my_red), TextAlign::BASELINE_LEFT, "%Y-%m-%d %H:%M:%S", id(esptime).now());
+      it.filled_rectangle(0, 19, 240, 2);
+
+      // MAIN VALUES
+      it.filled_rectangle(119, 0, 2, 120);
+
+      it.printf(2, 22, id(helvetica_8), id(my_green), TextAlign::LEFT, "Speed");  
+      it.printf(5, 38, id(helvetica_30), id(my_green), TextAlign::LEFT, "%s", id(textVit).state.c_str());  
+      it.printf(107, 72, id(helvetica_8), id(my_green), TextAlign::LEFT, "kt");  
+
+      it.printf(122, 22, id(helvetica_8), id(my_blue), TextAlign::LEFT, "Heading");
+      it.printf(125, 38, id(helvetica_30), id(my_blue), TextAlign::LEFT, "%s", id(textCap).state.c_str());
+      it.printf(218, 72, id(helvetica_8), id(my_blue), TextAlign::LEFT, "deg");
+      it.filled_rectangle(0, 84, 240, 2);
+
+      // FOOTER
+      it.printf(2, 87, id(helvetica_8), id(my_green), TextAlign::LEFT, "VMG");  
+      it.printf(35, 95, id(helvetica_20), id(my_green), TextAlign::LEFT, "%s", id(textVMG).state.c_str());  
+      it.printf(107, 108, id(helvetica_8), id(my_green), TextAlign::LEFT, "kt");  
+
+      it.printf(122, 87, id(helvetica_8), id(my_blue), TextAlign::LEFT, "TWA");
+      it.printf(147, 95, id(helvetica_20), id(my_blue), TextAlign::LEFT, "%s", id(textTWA).state.c_str());
+      it.printf(218, 108, id(helvetica_8), id(my_blue), TextAlign::LEFT, "deg");
+
 
 text_sensor:
-  - platform: mqtt_subscribe
-    name: "Latitude"
-    id: textLat
-    topic: gps/info/latitude
-  - platform: mqtt_subscribe
-    name: "Longitude"
-    id: textLong
-    topic: gps/info/longitude
   - platform: mqtt_subscribe
     name: "Vitesse"
     id: textVit
@@ -66,7 +81,14 @@ text_sensor:
     name: "Cap"
     id: textCap
     topic: gps/info/cap
-
+  - platform: mqtt_subscribe
+    name: "VMG"
+    id: textVMG
+    topic: gps/info/vmg
+  - platform: mqtt_subscribe
+    name: "TWA"
+    id: textTWA
+    topic: gps/info/twa
 
 spi: 
   clk_pin: 5
@@ -81,10 +103,15 @@ font:
   - file: "Helvetica.ttf"
     id: helvetica_12
     size: 12
-
+  - file: "Helvetica.ttf"
+    id: helvetica_20
+    size: 20
   - file: "Helvetica.ttf"
     id: helvetica_24
     size: 24
+  - file: "Helvetica.ttf"
+    id: helvetica_30
+    size: 30
     
 
 color:
@@ -100,6 +127,14 @@ color:
     red: 5%
     green: 100%
     blue: 3%
+  - id: darkgrey
+    red: 42%
+    green: 42%
+    blue: 42%
+  - id: lightgrey
+    red: 60%
+    green: 60%
+    blue: 60%
 
 
 
