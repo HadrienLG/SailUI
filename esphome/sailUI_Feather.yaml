@@ -7,27 +7,18 @@ wifi:
   ssid: "SailUI"
   password: "openplotter"
 
-  # Enable fallback hotspot (captive portal) in case wifi connection fails
-  ap:
-    ssid: "Sailuifeather Fallback Hotspot"
-    password: "gRv85G1FSoxt"
-
 captive_portal:
 
 # Enable logging
 logger:
-
-ota:
 
 mqtt:
   id : mqtt_client
   broker: 10.3.141.1
   port: 1883
 
-  
 web_server:
   port: 80
-
 
 time:
   - platform: sntp
@@ -47,30 +38,29 @@ display:
       it.fill(COLOR_BLACK);
 
       // HEADER - Draw a filled rectangle as a header.
-      it.strftime(0, 10, id(helvetica_8), id(my_red), TextAlign::BASELINE_LEFT, "%Y-%m-%d %H:%M:%S", id(esptime).now());
-      it.filled_rectangle(0, 19, 240, 2);
+      it.strftime(4, 4, id(helvetica_20), id(my_red), TextAlign::LEFT, "%Y-%m-%d %H:%M:%S", id(esptime).now());
+      it.filled_rectangle(0, 30, 320, 2);
 
       // MAIN VALUES
-      it.filled_rectangle(119, 0, 2, 120);
+      it.filled_rectangle(159, 30, 2, 240);
 
-      it.printf(2, 22, id(helvetica_8), id(my_green), TextAlign::LEFT, "Speed");  
-      it.printf(5, 38, id(helvetica_30), id(my_green), TextAlign::LEFT, "%s", id(textVit).state.c_str());  
-      it.printf(107, 72, id(helvetica_8), id(my_green), TextAlign::LEFT, "kt");  
+      it.printf(4, 36, id(helvetica_16), id(my_green), TextAlign::LEFT, "Speed");  
+      it.printf(5, 80, id(helvetica_40), id(my_green), TextAlign::LEFT, "%s", id(textVit).state.c_str());  
+      it.printf(135, 137, id(helvetica_16), id(my_green), TextAlign::LEFT, "kt");  
 
-      it.printf(122, 22, id(helvetica_8), id(my_blue), TextAlign::LEFT, "Heading");
-      it.printf(125, 38, id(helvetica_30), id(my_blue), TextAlign::LEFT, "%s", id(textCap).state.c_str());
-      it.printf(218, 72, id(helvetica_8), id(my_blue), TextAlign::LEFT, "deg");
-      it.filled_rectangle(0, 84, 240, 2);
+      it.printf(164, 36, id(helvetica_16), id(my_blue), TextAlign::LEFT, "Heading");
+      it.printf(165, 80, id(helvetica_40), id(my_blue), TextAlign::LEFT, "%s", id(textCap).state.c_str());
+      it.printf(280, 137, id(helvetica_16), id(my_blue), TextAlign::LEFT, "deg");
+      it.filled_rectangle(0, 160, 320, 2);
 
       // FOOTER
-      it.printf(2, 87, id(helvetica_8), id(my_green), TextAlign::LEFT, "VMG");  
-      it.printf(35, 95, id(helvetica_20), id(my_green), TextAlign::LEFT, "%s", id(textVMG).state.c_str());  
-      it.printf(107, 108, id(helvetica_8), id(my_green), TextAlign::LEFT, "kt");  
+      it.printf(4, 165, id(helvetica_16), id(my_green), TextAlign::LEFT, "VMG");  
+      it.printf(35, 190, id(helvetica_32), id(my_green), TextAlign::LEFT, "%s", id(textVMG).state.c_str());  
+      it.printf(135, 217, id(helvetica_16), id(my_green), TextAlign::LEFT, "kt");  
 
-      it.printf(122, 87, id(helvetica_8), id(my_blue), TextAlign::LEFT, "TWA");
-      it.printf(147, 95, id(helvetica_20), id(my_blue), TextAlign::LEFT, "%s", id(textTWA).state.c_str());
-      it.printf(218, 108, id(helvetica_8), id(my_blue), TextAlign::LEFT, "deg");
-
+      it.printf(164, 165, id(helvetica_16), id(my_blue), TextAlign::LEFT, "TWA");
+      it.printf(195, 190, id(helvetica_32), id(my_blue), TextAlign::LEFT, "%s", id(textTWA).state.c_str());
+      it.printf(280, 217, id(helvetica_16), id(my_blue), TextAlign::LEFT, "deg");
 
 text_sensor:
   - platform: mqtt_subscribe
@@ -98,22 +88,18 @@ spi:
 
 font:
   - file: "Helvetica.ttf"
-    id: helvetica_8
-    size: 8
+    id: helvetica_16
+    size: 16
   - file: "Helvetica.ttf"
-    id: helvetica_12
-    size: 12
+    id: helvetica_32
+    size: 32
+  - file: "Helvetica.ttf"
+    id: helvetica_40
+    size: 40
   - file: "Helvetica.ttf"
     id: helvetica_20
     size: 20
-  - file: "Helvetica.ttf"
-    id: helvetica_24
-    size: 24
-  - file: "Helvetica.ttf"
-    id: helvetica_30
-    size: 30
     
-
 color:
   - id: my_red
     red: 100%
@@ -135,8 +121,6 @@ color:
     red: 60%
     green: 60%
     blue: 60%
-
-
 
 # Define a PWM output on the ESP32
 output:

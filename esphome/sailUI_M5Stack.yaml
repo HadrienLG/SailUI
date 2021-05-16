@@ -7,18 +7,10 @@ wifi:
   ssid: "SailUI"
   password: "openplotter"
 
-  # Enable fallback hotspot (captive portal) in case wifi connection fails
-  ap:
-    ssid: "Sailuim5Stack Fallback Hotspot"
-    password: "7Ol7h74ejkII"
-
 captive_portal:
 
 # Enable logging
 logger:
-
-
-ota:
 
 
 mqtt:
@@ -49,23 +41,46 @@ display:
     dc_pin: 27
     led_pin: 32  ### see note below ###
     reset_pin: 33
+    id: ecran
+    pages:
+      - id: pageA
+        lambda: |-
+          // DISPLAY - supposed to be 320x240 px
+          it.fill(COLOR_BLACK);
+    
+          // HEADER - Draw a filled rectangle as a header.
+          it.strftime(4, 4, id(helvetica_20), id(my_red), TextAlign::LEFT, "%Y-%m-%d %H:%M:%S", id(esptime).now());
+          it.filled_rectangle(0, 30, 320, 2);
+    
+          // MAIN VALUES
+          it.filled_rectangle(159, 30, 2, 240);
+    
+          it.printf(4, 36, id(helvetica_16), id(my_green), TextAlign::LEFT, "Speed");  
+          it.printf(5, 80, id(helvetica_40), id(my_green), TextAlign::LEFT, "%s", id(textVit).state.c_str());  
+          it.printf(135, 137, id(helvetica_16), id(my_green), TextAlign::LEFT, "kt");  
+    
+          it.printf(164, 36, id(helvetica_16), id(my_blue), TextAlign::LEFT, "Heading");
+          it.printf(165, 80, id(helvetica_40), id(my_blue), TextAlign::LEFT, "%s", id(textCap).state.c_str());
+          it.printf(280, 137, id(helvetica_16), id(my_blue), TextAlign::LEFT, "deg");
+          it.filled_rectangle(0, 160, 320, 2);
+    
+          // FOOTER
+          it.printf(4, 165, id(helvetica_16), id(my_green), TextAlign::LEFT, "VMG");  
+          it.printf(35, 190, id(helvetica_32), id(my_green), TextAlign::LEFT, "%s", id(textVMG).state.c_str());  
+          it.printf(135, 217, id(helvetica_16), id(my_green), TextAlign::LEFT, "kt");  
+    
+          it.printf(164, 165, id(helvetica_16), id(my_blue), TextAlign::LEFT, "TWA");
+          it.printf(195, 190, id(helvetica_32), id(my_blue), TextAlign::LEFT, "%s", id(textTWA).state.c_str());
+          it.printf(280, 217, id(helvetica_16), id(my_blue), TextAlign::LEFT, "deg");
+      - id: pageB
+        lambda: |-
+          it.print(0, 10, id(helvetica_32), "This is page B!");
+      - id: pageC
+        lambda: |-
+          it.print(0, 10, id(helvetica_32), "This is page C!");
 
-    lambda: |-
-      it.fill(COLOR_BLACK);
-      it.printf(0, 25, id(helvetica_24), id(my_blue), TextAlign::LEFT, "Lat: %s", id(textLat).state.c_str());   
-      it.printf(0, 50, id(helvetica_24), id(my_green), TextAlign::LEFT, "Long: %s", id(textLong).state.c_str());  
-      it.printf(0, 75, id(helvetica_24), id(my_green), TextAlign::LEFT, "Vitesse: %s", id(textVit).state.c_str());  
-      it.printf(0, 100, id(helvetica_24), id(my_red), TextAlign::LEFT, "Cap: %s", id(textCap).state.c_str());   
 
 text_sensor:
-  - platform: mqtt_subscribe
-    name: "Latitude"
-    id: textLat
-    topic: gps/info/latitude
-  - platform: mqtt_subscribe
-    name: "Longitude"
-    id: textLong
-    topic: gps/info/longitude
   - platform: mqtt_subscribe
     name: "Vitesse"
     id: textVit
@@ -74,20 +89,30 @@ text_sensor:
     name: "Cap"
     id: textCap
     topic: gps/info/cap
+  - platform: mqtt_subscribe
+    name: "VMG"
+    id: textVMG
+    topic: gps/info/vmg
+  - platform: mqtt_subscribe
+    name: "TWA"
+    id: textTWA
+    topic: gps/info/twa
 
 
 
 font:
   - file: "Helvetica.ttf"
-    id: helvetica_8
-    size: 8
+    id: helvetica_16
+    size: 16
   - file: "Helvetica.ttf"
-    id: helvetica_12
-    size: 12
-
+    id: helvetica_32
+    size: 32
   - file: "Helvetica.ttf"
-    id: helvetica_24
-    size: 24
+    id: helvetica_40
+    size: 40
+  - file: "Helvetica.ttf"
+    id: helvetica_20
+    size: 20
     
 
 color:
@@ -103,3 +128,23 @@ color:
     red: 5%
     green: 100%
     blue: 3%
+
+binary_sensor:
+  - platform: gpio
+    name: "Button A"
+    pin: GPIO39
+    on_press:
+      then:
+        - display.page.show: pageA
+  - platform: gpio
+    name: "Button B"
+    pin: GPIO38
+    on_press:
+      then:
+        - display.page.show: pageB
+  - platform: gpio
+    name: "Button C"
+    pin: GPIO37
+    on_press:
+      then:
+        - display.page.show: pageC
