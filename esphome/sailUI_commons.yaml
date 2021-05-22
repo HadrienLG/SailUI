@@ -1,0 +1,44 @@
+
+
+wifi:
+  ssid: "SailUI"
+  password: "openplotter"
+  
+captive_portal:
+
+# Enable logging
+logger:
+
+
+mqtt:
+  id : mqtt_client
+  broker: 10.3.141.1
+  port: 1883
+
+
+web_server:
+  port: 80
+
+
+time:
+  - platform: sntp
+    id: esptime
+
+text_sensor:
+  - platform: mqtt_subscribe
+    name: "Vitesse"
+    id: textVit
+    topic: gps/info/vitesse
+  - platform: mqtt_subscribe
+    name: "Cap"
+    id: textCap
+    topic: gps/info/cap
+  - platform: mqtt_subscribe
+    name: "VMG"
+    id: textVMG
+    topic: gps/info/vmg
+  - platform: mqtt_subscribe
+    name: "TWA"
+    id: textTWA
+    topic: gps/info/twa
+

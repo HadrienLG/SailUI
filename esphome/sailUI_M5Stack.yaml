@@ -2,36 +2,50 @@ esphome:
   name: sailuim5stack
   platform: ESP32
   board: m5stack-fire
+  includes:
+    - includes/bmm150_custom.h
+    #- include/mpu6886.h
+    #- include/ip5306.h
+  libraries:
+    - "Grove 3Axis Compass V2.0 BMM150"
+    #- "Bosch BMM150 Sensor Library"
 
-wifi:
-  ssid: "SailUI"
-  password: "openplotter"
+<<: !include sailUI_commons.yaml # Commons configurations blocks are grouped
 
-captive_portal:
-
-# Enable logging
-logger:
-
-
-mqtt:
-  id : mqtt_client
-  broker: 10.3.141.1
-  port: 1883
-
-  
-web_server:
-  port: 80
-
-
-time:
-  - platform: sntp
-    id: esptime
-
+uart:
+  rx_pin: 16
+  baud_rate: 9600
 
 spi: 
   clk_pin: 18
   mosi_pin: 23
   miso_pin: 19
+
+i2c:
+  sda: 21
+  scl: 22
+  scan: True
+  id: bus_a
+
+binary_sensor:
+  - platform: gpio
+    name: "Button A"
+    pin: GPIO39
+    on_press:
+      then:
+        - display.page.show: pageA
+  - platform: gpio
+    name: "Button B"
+    pin: GPIO38
+    on_press:
+      then:
+        - display.page.show: pageB
+  - platform: gpio
+    name: "Button C"
+    pin: GPIO37
+    on_press:
+      then:
+        - display.page.show: pageC
 
 
 display:
@@ -45,14 +59,14 @@ display:
     pages:
       - id: pageA
         lambda: |-
-          // DISPLAY - supposed to be 320x240 px
+          /* ---- DISPLAY - supposed to be 320x240 px ---- */
           it.fill(COLOR_BLACK);
     
-          // HEADER - Draw a filled rectangle as a header.
+          /* ----  HEADER - Draw a filled rectangle as a header. ---- */
           it.strftime(4, 4, id(helvetica_20), id(my_red), TextAlign::LEFT, "%Y-%m-%d %H:%M:%S", id(esptime).now());
           it.filled_rectangle(0, 30, 320, 2);
     
-          // MAIN VALUES
+          /* ---- MAIN VALUES ---- */
           it.filled_rectangle(159, 30, 2, 240);
     
           it.printf(4, 36, id(helvetica_16), id(my_green), TextAlign::LEFT, "Speed");  
@@ -64,7 +78,7 @@ display:
           it.printf(280, 137, id(helvetica_16), id(my_blue), TextAlign::LEFT, "deg");
           it.filled_rectangle(0, 160, 320, 2);
     
-          // FOOTER
+          /* ---- FOOTER ---- */
           it.printf(4, 165, id(helvetica_16), id(my_green), TextAlign::LEFT, "VMG");  
           it.printf(35, 190, id(helvetica_32), id(my_green), TextAlign::LEFT, "%s", id(textVMG).state.c_str());  
           it.printf(135, 217, id(helvetica_16), id(my_green), TextAlign::LEFT, "kt");  
@@ -75,29 +89,74 @@ display:
       - id: pageB
         lambda: |-
           it.print(0, 10, id(helvetica_32), "This is page B!");
+          /* it.printf(20, 20, id(helvetica_32), "Ax: %.1f", id(accelerometre).state); */
       - id: pageC
         lambda: |-
           it.print(0, 10, id(helvetica_32), "This is page C!");
+          it.printf(0, 30, id(helvetica_16), TextAlign::LEFT, "Heading: %.1f °", id(headingxy).state);
+          it.printf(0, 50, id(helvetica_16), TextAlign::LEFT, "Heading: %.1f °", id(headingyz).state);
+          it.printf(0, 70, id(helvetica_16), TextAlign::LEFT, "Heading: %.1f °", id(headingzx).state);
 
 
-text_sensor:
-  - platform: mqtt_subscribe
-    name: "Vitesse"
-    id: textVit
-    topic: gps/info/vitesse
-  - platform: mqtt_subscribe
-    name: "Cap"
-    id: textCap
-    topic: gps/info/cap
-  - platform: mqtt_subscribe
-    name: "VMG"
-    id: textVMG
-    topic: gps/info/vmg
-  - platform: mqtt_subscribe
-    name: "TWA"
-    id: textTWA
-    topic: gps/info/twa
+# sensor:
+#   - platform: mpu6050
+#     address: 0x68
+#     id: accelerometre
+#     accel_x:
+#       name: "MPU6050 Accel X"
+#     accel_y:
+#       name: "MPU6050 Accel Y"
+#     accel_z:
+#       name: "MPU6050 Accel z"
+#     gyro_x:
+#       name: "MPU6050 Gyro X"
+#     gyro_y:
+#       name: "MPU6050 Gyro Y"
+#     gyro_z:
+#       name: "MPU6050 Gyro z"
+#     temperature:
+#       name: "MPU6050 Temperature"
 
+  # # BMM150: 3-Axis Geomagnetic Sensor
+  # - platform: BMM150
+  #   address: 0x10
+  #   i2c_id: bus_a
+  #   update_interval: 30s
+  #   battery_level:
+  #     name: "${friendly_name} Battery Level"
+  #     id: "m5stick_batterylevel"
+
+# Example configuration entry
+sensor:
+  - platform: custom
+    lambda: |-
+      auto bmm150 = new CustomBMM150();
+      App.register_component(bmm150);
+      return {bmm150->headingXY_sensor, bmm150->headingYZ_sensor, bmm150->headingZX_sensor};
+  
+    sensors:
+      - name: "Heading XY"
+        id: headingxy
+        unit_of_measurement: °
+        accuracy_decimals: 2
+      - name: "Heading YZ"
+        id: headingyz
+        unit_of_measurement: °
+        accuracy_decimals: 2
+      - name: "Heading ZX"
+        id: headingzx
+        unit_of_measurement: °
+        accuracy_decimals: 2
+
+  # # IP5306: charging/discharging，Voltage parameter
+  # - platform: IP5306
+  #   address: 0x75
+  #   i2c_id: bus_a
+  #   update_interval: 30s
+  #   battery_level:
+  #     name: "${friendly_name} Battery Level"
+  #     id: "m5stick_batterylevel"
+  
 
 
 font:
@@ -129,22 +188,3 @@ color:
     green: 100%
     blue: 3%
 
-binary_sensor:
-  - platform: gpio
-    name: "Button A"
-    pin: GPIO39
-    on_press:
-      then:
-        - display.page.show: pageA
-  - platform: gpio
-    name: "Button B"
-    pin: GPIO38
-    on_press:
-      then:
-        - display.page.show: pageB
-  - platform: gpio
-    name: "Button C"
-    pin: GPIO37
-    on_press:
-      then:
-        - display.page.show: pageC
