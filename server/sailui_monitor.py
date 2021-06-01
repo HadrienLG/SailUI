@@ -29,6 +29,8 @@ import subprocess
 import logging
 import time
 
+from subprocess import check_call
+
 import config.hardware as hardware
 from libs.LEDplus import LEDplus
 from gpiozero import Button, LED
