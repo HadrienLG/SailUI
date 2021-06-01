@@ -92,14 +92,20 @@ def thread_serial(threadstop, db_pos, mqttclient, status_led):
                 if id_nmea == 'RMC':
                     nmeaRMC = pynmea2.parse(phrase)
                     msgs = [{'topic':"gps/info/latitude", 'payload':nmeaRMC.latitude},
-                            {'topic':"gps/info/longitude", 'payload':nmeaRMC.longitude},
-                            {'topic':"gps/info/vitesse", 'payload':nmeaRMC.data[6]},
-                            {'topic':"gps/info/cap", 'payload':nmeaRMC.data[8]},]
+                            {'topic':"gps/info/longitude", 'payload':nmeaRMC.longitude},]
                     for msg in msgs:
                         result = mqttclient.publish(msg['topic'],msg['payload'])
                         if result[0] != 0:
                             logging.exception(f"Echec de l'envoi du message NMEA RMC au broker: {msg}")
-                    
+                if id_nmea == 'VTG':
+                    nmeaVTG = pynmea2.parse(phrase)
+                    msgs = [{'topic':"gps/info/vitesse", 'payload':nmeaVTG.data[4]}, # 'Speed over ground knots'
+                            {'topic':"gps/info/cap", 'payload':nmeaVTG.data[0]}, # 'True Track made good'
+                            ]
+                    for msg in msgs:
+                        result = mqttclient.publish(msg['topic'],msg['payload'])
+                        if result[0] != 0:
+                            logging.exception(f"Echec de l'envoi du message NMEA VTG au broker: {msg}")
         # Gestion des erreurs
         except(UnicodeError):
             logging.exception('ThreadSerial, erreur Unicode: ',ligne)
