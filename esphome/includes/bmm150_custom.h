@@ -9,12 +9,13 @@ class CustomBMM150 : public PollingComponent {
   BMM150 bmm = BMM150();
   bmm150_mag_data value_offset;
 
-  // constructor, update interval in ms
-  CustomBMM150() : PollingComponent(500) {}
   Sensor *headingXY_sensor = new Sensor();
   Sensor *headingYZ_sensor = new Sensor();
   Sensor *headingZX_sensor = new Sensor();
 
+  // constructor, update interval in ms
+  CustomBMM150() : PollingComponent(500) {}
+  
   float get_setup_priority() const override { 
     return esphome::setup_priority::HARDWARE; 
   }
