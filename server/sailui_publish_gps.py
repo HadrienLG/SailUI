@@ -92,7 +92,8 @@ def thread_serial(threadstop, db_pos, mqttclient, status_led):
                 if id_nmea == 'RMC':
                     nmeaRMC = pynmea2.parse(phrase)
                     msgs = [{'topic':"gps/info/latitude", 'payload':nmeaRMC.latitude},
-                            {'topic':"gps/info/longitude", 'payload':nmeaRMC.longitude},]
+                            {'topic':"gps/info/longitude", 'payload':nmeaRMC.longitude},
+                            {'topic':"gps/info/cap_vrai", 'payload':nmeaRMC[7]},]
                     for msg in msgs:
                         result = mqttclient.publish(msg['topic'],msg['payload'])
                         if result[0] != 0:
@@ -106,6 +107,16 @@ def thread_serial(threadstop, db_pos, mqttclient, status_led):
                         result = mqttclient.publish(msg['topic'],msg['payload'])
                         if result[0] != 0:
                             logging.exception(f"Echec de l'envoi du message NMEA VTG au broker: {msg}")
+                if id_nmea == 'GGA':
+                    nmeaGGA = pynmea2.parse(phrase)
+                    msgs = [{'topic':"gps/info/date", 'payload':nmeaGGA.data[0]}, # 'TimeStamp'
+                            {'topic':"gps/info/sats", 'payload':nmeaGGA.data[6]}, # 'Number of Satellites in use'
+                            {'topic':"gps/info/altitude", 'payload':nmeaGGA.data[8]}, # 'Antenna Alt above sea level (mean)'
+                            ]
+                    for msg in msgs:
+                        result = mqttclient.publish(msg['topic'],msg['payload'])
+                        if result[0] != 0:
+                            logging.exception(f"Echec de l'envoi du message NMEA GGA au broker: {msg}")
         # Gestion des erreurs
         except(UnicodeError):
             logging.exception('ThreadSerial, erreur Unicode: ',ligne)
