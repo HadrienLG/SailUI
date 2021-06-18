@@ -108,7 +108,7 @@ def nmea2payload(nmea):
     '''
     Mise en forme de la phrase NMEA vers une payload
     '''
-    identifier = nmea.identifier()[2:]
+    identifier = nmea.identifier()[2:-1]
     
     # Cas général
     msgs = []
@@ -190,8 +190,8 @@ if __name__ == '__main__':
     
     # Client MQTT
     client = MQTT() # adresse=mqttbroker['adresse'], port=mqttbroker['port'])
-    client.publish({'topic':"gps/server_status/datetime", 'payload':datetime.datetime.now().strftime('%H:%M:%S-%d/%m/%y')})
-    client.publish({'topic':"gps/server_status/state", 'payload':'up'})
+    client.publish("gps/server_status/datetime", datetime.datetime.now().strftime('%H:%M:%S-%d/%m/%y'))
+    client.publish("gps/server_status/state", 'up')
     logging.info(f'MQTT, connexions au serveur établie')
     
     ##############################################
@@ -211,9 +211,12 @@ if __name__ == '__main__':
         try:
             if not threadSerial.is_alive():
                 message = '[{}] {} {}'.format(time.ctime(), threadSerial.getName(), threadSerial.is_alive())
-                client.publish({'topic':"gps/server_status/datetime", 'payload':datetime.datetime.now().strftime('%H:%M:%S-%d/%m/%y')})
-                client.publish({'topic':"gps/server_status/state", 'payload':'down'})
+                client.publish("gps/server_status/datetime", datetime.datetime.now().strftime('%H:%M:%S-%d/%m/%y'))
+                client.publish("gps/server_status/state", 'down')
                 logging.warning(message)
+            else:
+                client.publish("gps/server_status/datetime", datetime.datetime.now().strftime('%H:%M:%S-%d/%m/%y'))
+                client.publish("gps/server_status/state", 'up')
         except:
             logging.exception('ThreadSerial is down...')
     else:
