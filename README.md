@@ -136,3 +136,13 @@ You can check the service's status:
 
 Or see the journal:
 `journalctl -u sailui_server.service`
+
+### Autostart
+
+To run Chrome at startup, edit
+'sudo nano /home/pi/.config/lxsession/LXDE-pi/autostart'
+
+And add:
+@chromium-browser --start-fullscreen --start-maximized http://localhost:1880/ui
+
+
