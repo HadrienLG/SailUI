@@ -25,15 +25,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-# Configuration
-import config.hardware as hardware
 
 # Generic/Built-in
 import datetime
 import serial
 import time
 import os
-import socket
 import sys
 import threading
 from subprocess import check_call
@@ -41,8 +38,6 @@ import logging
 import paho.mqtt.client as mqtt
 
 # Sensors
-from gpiozero import Button, LED
-from libs.LEDplus import LEDplus
 from libs.AD import ADS1015 # Amplificateur de gain
 from libs.ICM20948 import ICM20948 # Giroscope
 from libs.LPS22HB import LPS22HB # Pression, température
@@ -52,23 +47,17 @@ import busio
 import board
 import adafruit_shtc3
 
-# Project modules
-from database import DataBase
 
 # Owned
 __author__ = "HadrienLG"
 __copyright__ = "Copyright 2021, SailUI"
 __credits__ = ["HadrienLG", "ChrisBiau",]
 __license__ = "MIT"
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 __maintainer__ = "HadrienLG"
 __email__ = "hadrien.lg@wanadoo.fr"
 __status__ = "OnGoing"
-__influence__ = {'InfluxDB':'https://www.influxdata.com/blog/getting-started-python-influxdb/',
-                 'Socket_Thread':'https://www.positronx.io/create-socket-server-with-multiple-clients-in-python/',
-                 'Server_Client':'https://stackoverflow.com/questions/43513337/multiclient-server-in-python-how-to-broadcast',
-                 'NMEA parsing':'https://github.com/Knio/pynmea2',
-                 'Waveshare Sense HAT': 'https://www.waveshare.com/wiki/Sense_HAT_(B)'}
+__influence__ = {'Waveshare Sense HAT': 'https://www.waveshare.com/wiki/Sense_HAT_(B)'}
 
 # Logging
 logging.basicConfig(filename='sailui_publish_sensors.log', level=logging.DEBUG)
@@ -77,7 +66,7 @@ logging.info('Démarrage de SailUI-Publish sensors, début de journalisation')
 user_signal = True # variable global de boucle infinie
 axes = ['x','y','z']
 
-def thread_gyro(threadstop, db_cap, mqttclient, gyro):
+def thread_gyro(threadstop, mqttclient, gyro):
     while True:
         # Gyroscope
         gyro.icm20948update()
@@ -92,8 +81,7 @@ def thread_gyro(threadstop, db_cap, mqttclient, gyro):
                       'Gyroscope:     X = {}, Y = {}, Z = {}\n'.format(gyroscope[0], gyroscope[1], gyroscope[2]) + \
                       'Magnetic:      X = {}, Y = {}, Z = {}'.format(magnetic[0], magnetic[1], magnetic[2])
         logging.debug(message)
-        db_cap.add_info( {'type':'gyroscope', 'roll':roll, 'pitch':pitch, 'yaw':yaw,
-                          'acceleration':acceleration, 'gyroscope':gyroscope, 'magnetic':magnetic} )
+
         # MQTT
         for ax in zip(['roll', 'pitch', 'yaw'], [roll, pitch, yaw]):
             result = mqttclient.publish(f'gyro/{ax[0]}',ax[1]) # result: [code, message_id]
@@ -110,14 +98,13 @@ def thread_gyro(threadstop, db_cap, mqttclient, gyro):
             print('Arrêt du thread Gyroscope',threadstop())
             break
         
-def thread_baro(threadstop, db_cap, mqttclient, baro):
+def thread_baro(threadstop, mqttclient, baro):
     while True:
         time.sleep(5)
         # Baromètre
         baro.update()
         pression, temperature = baro.PRESS_DATA, baro.TEMP_DATA
         logging.debug('[BAROMETRE] Pressure = {:6.2f} hPa , Temperature = {:6.2f} °C'.format(pression, temperature) )
-        db_cap.add_info( {'type':'barometre', 'pression':pression, 'temperature':temperature} )
         
         # MQTT
         result = mqttclient.publish(f'baro/pression',pression) # result: [code, message_id]
@@ -133,13 +120,12 @@ def thread_baro(threadstop, db_cap, mqttclient, baro):
             print('Arrêt du thread Barometre',threadstop())
             break
 
-def thread_therm(threadstop, db_cap, mqttclient, therm):
+def thread_therm(threadstop, mqttclient, therm):
     while True:
         time.sleep(1)
         # Thermomètre
         temperature, humidite = therm.measurements
         logging.debug('[THERMOMETRE] Temperature = {:6.2f}°C , Humidity = {:6.2f}%%'.format(temperature, humidite) )
-        db_cap.add_info( {'type':'thermometre', 'temperature':temperature, 'humidite':humidite} )
         
         # MQTT
         result = mqttclient.publish(f'therm/temperature',temperature) # result: [code, message_id]
@@ -155,9 +141,6 @@ def thread_therm(threadstop, db_cap, mqttclient, therm):
             print('Arrêt du thread Thermometre',threadstop())
             break
 
-def killsignal():
-    logging.info('Lancement du kill signal')
-    user_signal = False
 
 # [MQTT] The callback for when the client receives a CONNACK response from the server.
 def on_connect(client, userdata, flags, rc):
@@ -190,18 +173,7 @@ if __name__ == '__main__':
     # - Baromètre
     # - Thermomètre
     logging.debug('Initialisation du programme')
-        
-    # Initialisation des GPIO
-    yellow2 = LEDplus(hardware.leds['yellow2'])
-    
-    yellow2.on()
-    time.sleep(1)
-    yellow2.off()
-    
-    # Connection à la base InfluxDB
-    InfluxCapteurs = DataBase('capteurs')
-    logging.info(f'InfluxDB, connexions au serveur établie')
-    
+ 
     # Initialisation des capteurs
     MotionVal = [0.0 for _ in range(0,9)]
     icm20948 = ICM20948() # Gyroscope
@@ -232,12 +204,10 @@ if __name__ == '__main__':
     # Ecoute des capteurs thread_capteurs(threadname, gyro, baro, therm):
     threads_capteurs = []
     for capteur in zip([icm20948, lps22hb, shtc3], ['Gyroscope', 'Baromètre', 'Thermomètre'], [thread_gyro, thread_baro, thread_therm]):
-        threadObj = threading.Thread( target=capteur[2], args=(stop_thread, InfluxCapteurs, client, capteur[0]) )
-        threadObj.setName( capteur[1] )
+        threadObj = threading.Thread( target=capteur[2], args=(stop_thread, client, capteur[0]), name=capteur[1]  )
         threads_capteurs.append(threadObj)
         threadObj.start()
         logging.info(f'Thread {capteur[1]} démarré')
-    yellow2.blink(0.5)
         
     ##############################################
     # 2. Supervision des threads
@@ -253,11 +223,6 @@ if __name__ == '__main__':
                     logging.warning(message)            
         except (KeyboardInterrupt, SystemExit): #when you press ctrl+c
             user_signal = False
-            InfluxCapteurs.close()
             logging.info("Done.\nExiting.")
-            yellow2.off()
     else:
-        print('Kill signal has been pressed...')
-        killsignal()
-        InfluxCapteurs.close()
         logging.info('Going to shut down now...')
