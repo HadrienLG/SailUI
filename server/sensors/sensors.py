@@ -121,7 +121,7 @@ def get_gnss(gnss):
             'origine':'gnss',
             'type':identifier, 
             'talker':nmea.talker,
-            'time':nmea.datetime.isoformat()
+            'time':0#nmea.datetime.isoformat()
             }
         for champ, valeur in dict(zip(nmea.fields,nmea.data)).items():
             cle = champ[1].strip().replace(' ','_')
@@ -147,16 +147,16 @@ def get_gnss(gnss):
             pass
 
         # Mise à l'heure du système
-        try:
-            system_time = datetime.datetime.now()
-            gps_time = nmea.datetime.isoformat()
-            logging.debug(f'Heures: system={system_time}, gps={gps_time}')
-            if datetime.timedelta(system_time, gps_time)>0:
-                new_time = gps_time.strftime('%y-%m-%d %H:%M:%S')
-                cmd = f'sudo date -s "{new_time}"'
-                subprocess.call(cmd)
-        except:
-            pass
+#         try:
+#             system_time = datetime.datetime.now()
+#             gps_time = nmea.datetime.isoformat()
+#             logging.debug(f'Heures: system={system_time}, gps={gps_time}')
+#             if datetime.timedelta(system_time, gps_time)>0:
+#                 new_time = gps_time.strftime('%y-%m-%d %H:%M:%S')
+#                 cmd = f'sudo date -s "{new_time}"'
+#                 subprocess.call(cmd)
+#         except:
+#             pass
 
         # Return
         return values

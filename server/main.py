@@ -56,14 +56,17 @@ def init():
     # GNSS
     port = "/dev/serial0"
     gnss = serial.Serial(port, baudrate = 9600, timeout = 0.5)
+    main_logger.debug('Port série ouvert')
 
     # MQTT
     mqtt = mqttc()
     mqtt.client.connect("127.0.0.1", 1883, 60)
     mqtt.client.loop_start()
-
+    main_logger.debug('Client MQTT connecté')
+    
     # InfluxDB
     db = DataBase()
+    main_logger.debug('Base de donnée connectée')
 
     return sensors, gnss, mqtt, db # Sensors-object
 
@@ -91,14 +94,14 @@ def processSensors(sensors, logger, q):
     """
 
     # Thread handling for each sensors
-    t = zip(
+    t = list(zip(
         [
             (get_therm,sensors['thermometre'],q,logger),
             (get_gyro,sensors['gyroscope'],q,logger),
             (get_baro,sensors['barometre'],q,logger)
         ],
         ['Thermometre', 'Gyroscope', 'Barometre']
-    )
+    ))
     threads = []
     for capteur in sensors:
         threadObj = Thread( target=thread_sensor, args=capteur[0], name=capteur[1]  )
@@ -111,7 +114,6 @@ def processSensors(sensors, logger, q):
             if not t.is_alive():
                 logger.error('Thread '+t.name+' est arrêté')
                 # TODO: try to restart thread (check exception)
-
 
 def processGNSS(gnss, logger, q):
     """Read serial output from M8Q and add datas to Queue
@@ -142,7 +144,7 @@ def publish(rawdatas, logger, mqtt, db):
         if key not in ['origine', 'type']:
             result = mqtt.client.publish(basetopic +'/'+ key, value)
             if result[0] != 0:
-                logger.exception(f"Echec de l'envoi du message au broker: {basetopic}/{key}->{value}")
+                logger.exception(f'Echec envoi du message au broker: {basetopic}|{key}->{value}')
         
     # DataBase
     fields = {key:value for key, value in rawdatas.items() if key not in ['origine', 'type', 'talker', 'time']}
@@ -185,23 +187,26 @@ def main():
         )
         pr.start()
         main_logger.debug('Processus '+ p[2] +' lancé')
-        processes.append(dict(zip(
+        proc = dict(zip(
             ['target', 'args', 'name', 'pr', 'pid'],
-            p + [pr, pr.pid]
-        )))
+            [p[0], p[1], p[2]] + [pr, pr.pid]
+        ))
+        print(proc)
+        processes.append(proc)
     
     # LOOP
     while evisfine:
         # Empty Queue -> publish
         output = q.get() # values in Queue are dict
         main_logger.debug('Read Queue, found: ' + str(output))
-        publish(output, main_logger, mqtt, db)
+        if output is not None:
+            publish(output, main_logger, mqtt, db)
 
         # Monitor Process
         for p in processes:
             pr = p['pr']
             if not pr.is_alive():
-                main_logger.error(pr.name + '(' + pr.pid + ') is no more alive: ' + pr.exitcode)
+                main_logger.error(pr.name + '(' + str(pr.pid) + ') is no more alive: ' + str(pr.exitcode))
                 # TODO: restart process if possible (check exception)
 
 # Execution

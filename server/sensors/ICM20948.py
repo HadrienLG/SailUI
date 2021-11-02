@@ -130,7 +130,7 @@ class ICM20948(object):
         self._address = address
         self._bus = smbus.SMBus(1)
         bRet = self.icm20948Check() # Initialization of the device multiple times after power on will result in a return error
-        time.sleep(0.5) # We can skip this detection by delaying it by 500 milliseconds
+        time.sleep(1.5) # We can skip this detection by delaying it by 500 milliseconds
         
         # user bank 0 register 
         self._write_byte( REG_ADD_REG_BANK_SEL , REG_VAL_REG_BANK_0)
