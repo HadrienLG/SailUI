@@ -12,6 +12,8 @@ import busio
 import board
 import serial
 import pynmea2
+import os
+import sys
 
 # Custom
 from sensors.mqttc import mqttc
@@ -25,7 +27,8 @@ from sensors.ICM20948 import ICM20948 # Giroscope
 from sensors.LPS22HB import LPS22HB # Pression, température
 from sensors.TCS34725 import TCS34725 # Couleurs
 from sensors.mqttc import mqttc #from sensors.SHTC3 import SHTC3 # Température, humidité
-from sensors.sensors import get_baro, get_gyro, get_therm, get_gnss
+from sensors.sensors import get_baro, get_gyro, get_therm
+from sensors.gnss import get_gnss
 
 
 # Parameters
@@ -65,10 +68,12 @@ def init():
     main_logger.debug('Client MQTT connecté')
     
     # InfluxDB
-    db = DataBase()
-    main_logger.debug('Base de donnée connectée')
+    dbs = {'sensors':DataBase(base_name='sensors'), 'gnss':DataBase(base_name='gnss')}
+    main_logger.debug('Bases de données connectées')
+    for db in dbs.values():
+        main_logger.debug(str(db.info()))
 
-    return sensors, gnss, mqtt, db # Sensors-object
+    return sensors, gnss, mqtt, dbs # Sensors-object
 
 def thread_sensor(func, sensor, q, logger):
     """Generic thread function for sensors
@@ -79,6 +84,7 @@ def thread_sensor(func, sensor, q, logger):
         q (Queue.Queue): [description]
         logger (logging.Logger): [description]
     """
+    logger.info('Démarrage du thread...')
     while evisfine:
         values = func(sensor)
         q.put(values)
@@ -94,7 +100,7 @@ def processSensors(sensors, logger, q):
     """
 
     # Thread handling for each sensors
-    t = list(zip(
+    parametres = list(zip(
         [
             (get_therm,sensors['thermometre'],q,logger),
             (get_gyro,sensors['gyroscope'],q,logger),
@@ -103,16 +109,21 @@ def processSensors(sensors, logger, q):
         ['Thermometre', 'Gyroscope', 'Barometre']
     ))
     threads = []
-    for capteur in sensors:
-        threadObj = Thread( target=thread_sensor, args=capteur[0], name=capteur[1]  )
+    for parametre in parametres:
+        threadObj = Thread( target=thread_sensor, args=parametre[0], name=parametre[1]  )
         threads.append(threadObj)
         threadObj.start()
+        logger.debug(f'Thread {threadObj.getName()} est démarré')
+        
+    for th in threads:
+        th.join()
+        logger.debug(f'Thread {th.getName()} est joint')
 
     # LOOP
     while evisfine:
-        for t in threads:
-            if not t.is_alive():
-                logger.error('Thread '+t.name+' est arrêté')
+        for th in threads:
+            if not th.is_alive():
+                logger.error('Thread '+th.getName()+' est arrêté')
                 # TODO: try to restart thread (check exception)
 
 def processGNSS(gnss, logger, q):
@@ -136,7 +147,7 @@ def publish(rawdatas, logger, mqtt, db):
         rawdatas ([type]): [description]
     """
     # Logging
-    logger.info(str(rawdatas))
+    logger.debug(str(rawdatas))
 
     # MQTT
     basetopic = rawdatas['origine']+'/'+rawdatas['type']
@@ -165,12 +176,12 @@ def main():
     """
     # Init
 
-    sensors, gnss, mqtt, db = init()
+    sensors, gnss, mqtt, dbs = init()
     main_logger.debug('Initialisation des HAT terminée')
 
     # Process handling for each HAT
     q = Queue()
-    pp = zip(
+    parametres = zip(
         [processSensors, processGNSS],
         [
             (sensors, sensors_logger, q,),
@@ -178,29 +189,31 @@ def main():
         ],
         ['SENSORS', 'GNSS']
         )
+    # pp = [[processSensors, (sensors, sensors_logger, q,), 'SENSORS']] # For debug purpose
     processes = []
-    for p in pp:
+    for parametre in parametres:
         pr = Process(
-            target=p[0],
-            args=p[1],
-            name=p[2]
+            target=parametre[0],
+            args=parametre[1],
+            name=parametre[2]
         )
         pr.start()
-        main_logger.debug('Processus '+ p[2] +' lancé')
+        main_logger.debug('Processus '+ parametre[2] +' lancé')
         proc = dict(zip(
             ['target', 'args', 'name', 'pr', 'pid'],
-            [p[0], p[1], p[2]] + [pr, pr.pid]
+            [parametre[0], parametre[1], parametre[2]] + [pr, pr.pid]
         ))
-        print(proc)
         processes.append(proc)
     
     # LOOP
     while evisfine:
         # Empty Queue -> publish
         output = q.get() # values in Queue are dict
-        main_logger.debug('Read Queue, found: ' + str(output))
         if output is not None:
-            publish(output, main_logger, mqtt, db)
+            if output['origine'] == 'sensors':
+                publish(output, sensors_logger, mqtt, dbs['sensors'])
+            if output['origine'] == 'gnss':
+                publish(output, gnss_logger, mqtt, dbs['gnss'])    
 
         # Monitor Process
         for p in processes:
@@ -211,4 +224,11 @@ def main():
 
 # Execution
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print('Interrupted')
+        try:
+            sys.exit(0)
+        except SystemExit:
+            os._exit(0)

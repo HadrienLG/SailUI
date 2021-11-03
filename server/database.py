@@ -34,9 +34,18 @@ from influxdb import InfluxDBClient,exceptions
 # Class
 
 class DataBase():
-    def __init__(self, base_name='position'):
-        self.client = InfluxDBClient(host='localhost', port=8086)
-        logging.info(self.client.get_list_database())
+    host = 'localhost'
+    port = 8086
+    available = []
+    
+    def __init__(self, base_name='general'):
+        self.base_name = base_name
+        # Create InfluxDBClient object
+        self.client = InfluxDBClient(host=self.host, port=self.port)
+        
+        # Log all available databases
+        self.available = self.client.get_list_database()
+        logging.info(str(self.available))
 
         if base_name in [list(x.values())[0] for x in self.client.get_list_database()]:
              logging.info(f'Base de données {base_name} disponible')
@@ -44,8 +53,12 @@ class DataBase():
             self.client.create_database(base_name)
             logging.info(f'Base de données {base_name} créée')
         self.client.switch_database(base_name)
-
+        logging.info(f'Base de données {base_name} activée')
+        
     def add(self, charge):
         self.client.write_points([charge])
         logging.debug('Charge '+str(charge)+' ajoutée à la base'.format(self.client))
 
+    def info(self):
+        return {'host':self.host, 'port':self.port, 'basename':self.base_name, 'available':self.available}
+        
