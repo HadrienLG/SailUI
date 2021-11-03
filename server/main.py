@@ -16,20 +16,18 @@ import os
 import sys
 
 # Custom
-from sensors.mqttc import mqttc
+from libs.MQTT import MQTT
 from database import DataBase
 from logger import main_logger, gnss_logger, sensors_logger
 
 # Sensors
-import adafruit_shtc3
+import adafruit_shtc3 #from sensors.SHTC3 import SHTC3 # Température, humidité
 from sensors.AD import ADS1015 # Amplificateur de gain
 from sensors.ICM20948 import ICM20948 # Giroscope
 from sensors.LPS22HB import LPS22HB # Pression, température
 from sensors.TCS34725 import TCS34725 # Couleurs
-from sensors.mqttc import mqttc #from sensors.SHTC3 import SHTC3 # Température, humidité
 from sensors.sensors import get_baro, get_gyro, get_therm
 from sensors.gnss import get_gnss
-
 
 # Parameters
 main_logger.info("Lancement de l'application")
@@ -62,9 +60,7 @@ def init():
     main_logger.debug('Port série ouvert')
 
     # MQTT
-    mqtt = mqttc()
-    mqtt.client.connect("127.0.0.1", 1883, 60)
-    mqtt.client.loop_start()
+    mqttclient = MQTT()
     main_logger.debug('Client MQTT connecté')
     
     # InfluxDB
@@ -73,7 +69,7 @@ def init():
     for db in dbs.values():
         main_logger.debug(str(db.info()))
 
-    return sensors, gnss, mqtt, dbs # Sensors-object
+    return sensors, gnss, mqttclient, dbs # Sensors-object
 
 def thread_sensor(func, sensor, q, logger):
     """Generic thread function for sensors
@@ -140,7 +136,7 @@ def processGNSS(gnss, logger, q):
         logger.debug(str(values))
 
 
-def publish(rawdatas, logger, mqtt, db):
+def publish(rawdatas, logger, mqttclient, db):
     """Send values from HAT to MQTT broker, log entries and database
 
     Args:
@@ -153,7 +149,7 @@ def publish(rawdatas, logger, mqtt, db):
     basetopic = rawdatas['origine']+'/'+rawdatas['type']
     for key, value in rawdatas.items():
         if key not in ['origine', 'type']:
-            result = mqtt.client.publish(basetopic +'/'+ key, value)
+            result = mqttclient.publish(basetopic +'/'+ key, value)
             if result[0] != 0:
                 logger.exception(f'Echec envoi du message au broker: {basetopic}|{key}->{value}')
         
@@ -176,7 +172,7 @@ def main():
     """
     # Init
 
-    sensors, gnss, mqtt, dbs = init()
+    sensors, gnss, mqttclient, dbs = init()
     main_logger.debug('Initialisation des HAT terminée')
 
     # Process handling for each HAT
@@ -211,9 +207,9 @@ def main():
         output = q.get() # values in Queue are dict
         if output is not None:
             if output['origine'] == 'sensors':
-                publish(output, sensors_logger, mqtt, dbs['sensors'])
+                publish(output, sensors_logger, mqttclient, dbs['sensors'])
             if output['origine'] == 'gnss':
-                publish(output, gnss_logger, mqtt, dbs['gnss'])    
+                publish(output, gnss_logger, mqttclient, dbs['gnss'])    
 
         # Monitor Process
         for p in processes:
@@ -228,6 +224,8 @@ if __name__ == '__main__':
         main()
     except KeyboardInterrupt:
         print('Interrupted')
+        evisfine = False
+        main_logger.debug('Everything is not longer fine...')
         try:
             sys.exit(0)
         except SystemExit:

@@ -34,14 +34,15 @@ from influxdb import InfluxDBClient,exceptions
 # Class
 
 class DataBase():
-    host = 'localhost'
-    port = 8086
     available = []
     
-    def __init__(self, base_name='general'):
+    def __init__(self, base_name='general', host='localhost', port=8086):
         self.base_name = base_name
+        self.host = host
+        self.port = port
+        
         # Create InfluxDBClient object
-        self.client = InfluxDBClient(host=self.host, port=self.port)
+        self.client = InfluxDBClient(host=host, port=port)
         
         # Log all available databases
         self.available = self.client.get_list_database()
