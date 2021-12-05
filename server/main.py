@@ -11,14 +11,13 @@ from threading import Thread
 import busio
 import board
 import serial
-import pynmea2
 import os
 import sys
 
 # Custom
 from libs.MQTT import MQTT
-from database import DataBase
-from logger import main_logger, gnss_logger, sensors_logger
+from libs.database import DataBase
+from config.logger import main_logger, gnss_logger, sensors_logger
 
 # Sensors
 import adafruit_shtc3 #from sensors.SHTC3 import SHTC3 # Température, humidité

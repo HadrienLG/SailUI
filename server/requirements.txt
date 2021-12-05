@@ -1,4 +1,10 @@
+# GPS related
 pynmea2
-influxdb
+
+# Sensor related
 gpiozero
 adafruit-circuitpython-shtc3
+
+# Data related
+influxdb
+paho-mqtt
