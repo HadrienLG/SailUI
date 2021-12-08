@@ -2,6 +2,28 @@
 
 Portable sailing instruments
 
+## Ambition
+Pouvoir avoir un minimum d'instrumentation quand on change de bateau à chaque navigation
+
+## Kit de base, actuel
+Un raspberry pi 4 avec un HAT GPS Neo8M et un HAT Sensor B
+
+## Mise en route
+Utiliser le script *installation.sh* à partir d'une carte SD avec RaspiOS
+
+## Configuration du HAT GPS
+Depuis un ordinateur avec Windows, télécharger ucenter depuis u-blox.com et l'installer.
+Télécharger et installer les pilotes SiliconLabs CP210X USB to UART depuis silabs.com
+
+Brancher le HAT au pc avec un cable USB après avoir placé les jumpers sur A (USB GNSS), ouvrir ucenter et choisir le port COM associé.
+Ouvrir *View\Configuration View*
+Aller au menu *PRT (Ports)*. En bas à gauche, ouvrir le cadenas avec un clic, cliquer sur Poll pour appeler les paramètres en cours, modifier la valeur de *Baudrates* à *57600* puis cliquer sur *Send*.
+Aller au menu *RATE (Rates)* et changer la *Measurement Period* pour obtenir le taux de rafraichissement désiré (200ms = 5Hz, 100ms = 10Hz). Cliquer sur *Send*.
+Aller au menu *CFG (Configuration)* et choisir *Devices* *2-I2C-EEPROM*, *Save current configuration* et cliquer sur *Send*.
+[Inspiré de https://dadfpv.com/how-to-configure-optimal-gps-settings-increase-update-rate-sam-m8q-m8q-5883-and-similar-ublox-based/]
+
+------------------------------
+
 ## Hardware
 
 SERVER
