@@ -8,11 +8,12 @@
 # Import
 from multiprocessing import Queue, Process
 from threading import Thread
+import subprocess
 import busio
 import board
-import serial
 import os
 import sys
+from gpsdclient import GPSDClient
 
 # Custom
 from libs.MQTT import MQTT
@@ -53,10 +54,11 @@ def init():
     
     sensors = {'gyroscope':icm20948,'barometre':lps22hb,'thermometre':shtc3}
     
-    # GNSS
-    port = "/dev/serial0"
-    gnss = serial.Serial(port, baudrate = 9600, timeout = 0.5)
-    main_logger.debug('Port série ouvert')
+    # GNSS - Configuration de la fréquence à 5Hz puis connexion au client GPSD
+    returned_value = subprocess.call('ubxtool -p CFG-RATE,200', shell=True)  # returns the exit code in unix
+    main_logger('Ublox CFG-RATE:', returned_value)
+    gnss = GPSDClient(host="127.0.0.1")
+    main_logger.debug('Client GPSD connecté')
 
     # MQTT
     mqttclient = MQTT()
@@ -122,18 +124,17 @@ def processSensors(sensors, logger, q):
                 # TODO: try to restart thread (check exception)
 
 def processGNSS(gnss, logger, q):
-    """Read serial output from M8Q and add datas to Queue
+    """Read output from GPSD and add datas to Queue
 
     Args:
-        gnss (serial.Serial): [description]
+        gnss (gpsdclient.GPSDClient): [description]
         logger (logging.Logger): [description]
         q (Queue.Queue): [description]
-    """ 
+    """
     while evisfine:
-        values = get_gnss(gnss)
-        q.put(values)
-        logger.debug(str(values))
-
+        for result in gnss.dict_stream(convert_datetime=True):
+            q.put(result)
+            logger.debug(str(result))
 
 def publish(rawdatas, logger, mqttclient, db):
     """Send values from HAT to MQTT broker, log entries and database

@@ -22,6 +22,10 @@ Aller au menu *RATE (Rates)* et changer la *Measurement Period* pour obtenir le 
 Aller au menu *CFG (Configuration)* et choisir *Devices* *2-I2C-EEPROM*, *Save current configuration* et cliquer sur *Send*.
 [Inspiré de https://dadfpv.com/how-to-configure-optimal-gps-settings-increase-update-rate-sam-m8q-m8q-5883-and-similar-ublox-based/]
 
+Sinon, utilisation en ligne de commande de l'outil ubxtool (https://gpsd.io/ubxtool-examples.html) qui vient avec gpsd-clients
+
+Pour mettre à jour l'horloge interne à l'aide du GPS, utiliser la fonction PPS dans GPSD pour avoir un ntp
+
 ------------------------------
 
 ## Hardware

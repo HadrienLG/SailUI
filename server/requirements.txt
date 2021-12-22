@@ -1,5 +1,6 @@
 # GPS related
 pynmea2
+gpsdclient
 
 # Sensor related
 gpiozero

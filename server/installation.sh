@@ -14,7 +14,17 @@ sudo rpi-update -y
 
 # Installation des paquets systèmes de base
 echo "Installation des paquets nécessaires"
-sudo apt-get install python3 gpsd gpsd-clients python-gps 
+sudo apt-get install python3 gpsd gpsd-clients gpsd-tools
+
+# Configuration du récepteur GPS Waveshare Ublox M8Q
+export UBXOPTS="-P 18 -v 2"
+sudo sed -i 's/USBAUTO="true"/USBAUTO="false"/g' /etc/default/gpsd # GPSD is the program used to receive the GPS data. By default, it looks for a USB based GPS module. Since ours is not USB, we disable this to speed things up.
+sudo sed -i 's:DEVICES="":DEVICES="/dev/ttyS0 /dev/pps0":g' /etc/default/gpsd # we want to use ttyAMA0 to deliver the GPS data
+sudo sed -i 's:GPSD_OPTIONS="":GPSD_OPTIONS="-n":g' /etc/default/gpsd # Setting GPSD Options to -n ensure the GPS Daemon continues to run even if no application is using it.
+sudo systemctl enable gpsd
+
+sudo echo dtoverlay=pps-gpio,gpiopin=18 >> /boot/config.txt # Configuration du PIN PPS, voir documentation Waveshare M8Q https://www.waveshare.com/product/raspberry-pi/hats/max-m8q-gnss-hat.htm
+sudo echo pps-gpio >> /etc/modules # Ajout du module PPS-GPIO au démarrage
 
 # Clonage du dépôt Github SailUI
 echo "Clonage du code source depuis Github"

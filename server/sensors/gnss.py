@@ -2,6 +2,7 @@
 
 # Import
 import datetime
+from dateutil import parser
 import logging
 import pynmea2
 import subprocess
@@ -76,3 +77,73 @@ def get_gnss(gnss):
 
         # Return
         return values
+
+def format_gnss(charge):
+    """[summary]
+
+    Args:
+        charge ([dict]): Raw JSON dict send by 
+
+    Returns:
+        [type]: [description]
+    """
+    #TODO: différencier le traitement SKY et TPV
+
+    # Préparation de la charge
+    values = {
+            'origine':'gnss',
+            'type':charge['class'], 
+            }
+    
+    # Spécialisation de la charge
+    if charge['class'] == 'TPV': # Temps, Position, Vitesse
+        values['talker'] = 'TPV'
+        for champ, valeur in charge.items():
+            if type(valeur) is float or type(valeur) is str:
+                values[champ] = valeur
+        if 'lat' in charge.keys():
+            values['latitude'] = charge['lat']
+        if 'lon' in charge.keys():
+            values['longitude'] = charge['lon']
+        if 'time' in charge.keys():
+            values['datetime'] = parser.parse(charge['time'])
+        if 'mode' in charge.keys():
+            if charge['mode'] == 0:
+                values['fix'] = 'unknown'
+            elif charge['mode'] == 1:
+                values['fix'] = 'unknown'
+            elif charge['mode'] == 2:
+                values['fix'] = '2D'
+            elif charge['mode'] == 3:
+                values['fix'] = '3D'
+        if 'status' in charge.keys(): # GPS fix status
+            if charge['status'] == 0:
+                values['status'] = 'Unknown'
+            if charge['status'] == 1:
+                values['status'] = 'Normal'
+            if charge['status'] == 2:
+                values['status'] = 'DGPS'
+            if charge['status'] == 3:
+                values['status'] = 'RTK Fixed'
+            if charge['status'] == 4:
+                values['status'] = 'RTK Floating'
+            if charge['status'] == 5:
+                values['status'] = 'DR'
+            if charge['status'] == 6:
+                values['status'] = 'GNSSDR'
+            if charge['status'] == 7:
+                values['status'] = 'Time (surveyed)'
+            if charge['status'] == 8:
+                values['status'] = 'Simulated'
+            if charge['status'] == 9:
+                values['status'] = 'P(Y)'
+
+    if charge['class'] == 'SKY': # Satellites en vue
+        values['talker'] = 'SKY'
+        for champ, valeur in charge.items():
+            if type(valeur) is float or type(valeur) is str:
+                values[champ] = valeur
+        if 'time' in charge.keys():
+            values['datetime'] = parser.parse(charge['time'])
+        
+    return values
