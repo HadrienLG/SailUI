@@ -3,12 +3,14 @@
 # Import
 import datetime
 from dateutil import parser
+from collections import Counter
 import logging
 import pynmea2
 import subprocess
 
 # Parameters
 identifiants = ['GGA', 'GLL', 'GSA', 'GSV', 'VTG', 'RMC'] # Worthy
+gnssid_dict = {0:'GPS',1:'SBAS', 2:'Galileo', 3:'Beidou', 4:'IMES', 5:'QZSS', 6:'GLONASS'}
 
 # Functions
 
@@ -92,12 +94,12 @@ def format_gnss(charge):
     # Préparation de la charge
     values = {
             'origine':'gnss',
-            'type':charge['class'], 
+            'talker':'ublox-M8Q',
+            'type':charge['class'],
             }
     
     # Spécialisation de la charge
     if charge['class'] == 'TPV': # Temps, Position, Vitesse
-        values['talker'] = 'TPV'
         for champ, valeur in charge.items():
             if type(valeur) is float or type(valeur) is str:
                 values[champ] = valeur
@@ -139,11 +141,25 @@ def format_gnss(charge):
                 values['status'] = 'P(Y)'
 
     if charge['class'] == 'SKY': # Satellites en vue
-        values['talker'] = 'SKY'
         for champ, valeur in charge.items():
             if type(valeur) is float or type(valeur) is str:
                 values[champ] = valeur
         if 'time' in charge.keys():
             values['datetime'] = parser.parse(charge['time'])
-        
+        if 'satellites' in charge.keys():
+            satellites = charge['satellites']
+            values['satellites'] = satellites
+            if len(satellites)>0:
+                stat = {
+                    'used':dict(Counter([gnssid_dict[sat['gnssid']] for sat in satellites if sat['used']])),
+                    'unused':dict(Counter([gnssid_dict[sat['gnssid']] for sat in satellites if not sat['used']]))
+                }
+                values['satinuse'] = stat
+        else:
+            values['satellites'] = []
+
+    if 'TPV' not in charge['class'] or 'SKY' not in charge['class']:
+        for champ, valeur in charge.items():
+            values[champ] = valeur
+
     return values

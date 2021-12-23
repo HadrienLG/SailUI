@@ -28,6 +28,7 @@ from sensors.LPS22HB import LPS22HB # Pression, température
 from sensors.TCS34725 import TCS34725 # Couleurs
 from sensors.sensors import get_baro, get_gyro, get_therm
 from sensors.gnss import get_gnss
+from server.sensors.gnss import format_gnss
 
 # Parameters
 main_logger.info("Lancement de l'application")
@@ -133,8 +134,9 @@ def processGNSS(gnss, logger, q):
     """
     while evisfine:
         for result in gnss.dict_stream(convert_datetime=True):
-            q.put(result)
-            logger.debug(str(result))
+            values = format_gnss(result)
+            q.put(values)
+            logger.debug(str(values))
 
 def publish(rawdatas, logger, mqttclient, db):
     """Send values from HAT to MQTT broker, log entries and database

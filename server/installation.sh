@@ -14,7 +14,7 @@ sudo rpi-update -y
 
 # Installation des paquets systèmes de base
 echo "Installation des paquets nécessaires"
-sudo apt-get install python3 gpsd gpsd-clients gpsd-tools
+sudo apt-get install python3 gpsd gpsd-clients gpsd-tools ntp -y
 
 # Configuration du récepteur GPS Waveshare Ublox M8Q
 export UBXOPTS="-P 18 -v 2"
@@ -32,13 +32,13 @@ cd ~
 git clone https://github.com/HadrienLG/SailUI.git
 
 # Installation de Telegraf & InfluxDB (code frome doc.influxdata.com)
-# wget -qO- https://repos.influxdata.com/influxdb.key | sudo tee /etc/apt/trusted.gpg.d/influxdb.asc >/dev/null
-# source /etc/os-release
-# echo "deb https://repos.influxdata.com/${ID} ${VERSION_CODENAME} stable" | sudo tee /etc/apt/sources.list.d/influxdb.list
-# sudo apt-get update && sudo apt-get install telegraf influxdb
-# sudo systemctl unmask influxdb
-# sudo systemctl enable influxdb
-# sudo systemctl start influxdb
+wget -qO- https://repos.influxdata.com/influxdb.key | sudo tee /etc/apt/trusted.gpg.d/influxdb.asc >/dev/null
+source /etc/os-release
+echo "deb https://repos.influxdata.com/${ID} ${VERSION_CODENAME} stable" | sudo tee /etc/apt/sources.list.d/influxdb.list
+sudo apt-get update && sudo apt-get install telegraf influxdb
+sudo systemctl unmask influxdb
+sudo systemctl enable influxdb
+sudo systemctl start influxdb
 
 # Installation des dépendances python
 echo "Installation des dépendances python"
@@ -48,4 +48,3 @@ sudo pip install -r requirements.txt
 
 # Lancement des services systemd
 fichier='/etc/systemd/system/SAILui_server.service'
-
