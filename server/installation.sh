@@ -10,16 +10,15 @@ date
 echo "Mise à jour du raspberry"
 sudo apt-get update -y
 sudo apt-get dist-upgrade -y
-sudo rpi-update -y
 
 # Installation des paquets systèmes de base
 echo "Installation des paquets nécessaires"
-sudo apt-get install python3 gpsd gpsd-clients gpsd-tools ntp -y
+sudo apt-get install python3 gpsd gpsd-clients pps-tools ntp mosquitto -y
 
 # Configuration du récepteur GPS Waveshare Ublox M8Q
 export UBXOPTS="-P 18 -v 2"
 sudo sed -i 's/USBAUTO="true"/USBAUTO="false"/g' /etc/default/gpsd # GPSD is the program used to receive the GPS data. By default, it looks for a USB based GPS module. Since ours is not USB, we disable this to speed things up.
-sudo sed -i 's:DEVICES="":DEVICES="/dev/ttyS0 /dev/pps0":g' /etc/default/gpsd # we want to use ttyAMA0 to deliver the GPS data
+sudo sed -i 's:DEVICES="":DEVICES="/dev/ttyAMA0 /dev/pps0":g' /etc/default/gpsd # we want to use ttyAMA0 to deliver the GPS data
 sudo sed -i 's:GPSD_OPTIONS="":GPSD_OPTIONS="-n":g' /etc/default/gpsd # Setting GPSD Options to -n ensure the GPS Daemon continues to run even if no application is using it.
 sudo systemctl enable gpsd
 
@@ -31,20 +30,23 @@ echo "Clonage du code source depuis Github"
 cd ~
 git clone https://github.com/HadrienLG/SailUI.git
 
-# Installation de Telegraf & InfluxDB (code frome doc.influxdata.com)
-wget -qO- https://repos.influxdata.com/influxdb.key | sudo tee /etc/apt/trusted.gpg.d/influxdb.asc >/dev/null
-source /etc/os-release
-echo "deb https://repos.influxdata.com/${ID} ${VERSION_CODENAME} stable" | sudo tee /etc/apt/sources.list.d/influxdb.list
-sudo apt-get update && sudo apt-get install telegraf influxdb
-sudo systemctl unmask influxdb
-sudo systemctl enable influxdb
-sudo systemctl start influxdb
-
 # Installation des dépendances python
 echo "Installation des dépendances python"
 sudo pip install pip --upgrade # Mise à jour de pip pour commencer
 cd 'SailUI\server'
 sudo pip install -r requirements.txt
+
+# Installation de RaspAP 
+curl -sL https://install.raspap.com | bash -s -- --yes
+
+# Installation de Telegraf & InfluxDB (code frome doc.influxdata.com)
+# wget -qO- https://repos.influxdata.com/influxdb.key | sudo tee /etc/apt/trusted.gpg.d/influxdb.asc >/dev/null
+# source /etc/os-release
+# echo "deb https://repos.influxdata.com/${ID} ${VERSION_CODENAME} stable" | sudo tee /etc/apt/sources.list.d/influxdb.list
+# sudo apt-get update && sudo apt-get install telegraf influxdb
+# sudo systemctl unmask influxdb
+# sudo systemctl enable influxdb
+# sudo systemctl start influxdb
 
 # Lancement des services systemd
 fichier='/etc/systemd/system/SAILui_server.service'
