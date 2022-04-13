@@ -4,6 +4,8 @@ gpsdclient
 
 # Sensor related
 gpiozero
+busio
+board
 adafruit-circuitpython-shtc3
 
 # Data related

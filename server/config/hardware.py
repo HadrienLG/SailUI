@@ -11,6 +11,7 @@ sailui_hat = {
     'led5':12,
     'led6':16,
     'powerled':17,
+    # 'powerbutton': 18,
     'switchA1':22,
     'switchA2':23,
     'switchB1':5,

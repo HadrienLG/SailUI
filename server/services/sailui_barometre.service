@@ -1,0 +1,16 @@
+[Unit]
+Description=SailUI barometre
+After=multi-user.target
+
+[Service]
+WorkingDirectory=/home/sailui/Documents/server
+Type=idle
+User=pi
+ExecStart=/usr/bin/python3 /home/pi/sailui/Documents/barometre.py 
+StartLimitBurst=2
+StartLimitInterval=30
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

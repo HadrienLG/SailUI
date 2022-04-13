@@ -1,12 +1,12 @@
 [Unit]
-Description=SailUI server
+Description=SailUI thermometre
 After=multi-user.target
 
 [Service]
-WorkingDirectory=/home/pi/SailUI/server
+WorkingDirectory=/home/sailui/Documents/server
 Type=idle
 User=pi
-ExecStart=/usr/bin/python3 /home/pi/SailUI/server/main.py 
+ExecStart=/usr/bin/python3 /home/pi/sailui/Documents/thermometre.py 
 StartLimitBurst=2
 StartLimitInterval=30
 Restart=on-failure
