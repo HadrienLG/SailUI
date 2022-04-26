@@ -39,15 +39,18 @@ sudo pip install -r requirements.txt
 # Installation de RaspAP 
 curl -sL https://install.raspap.com | bash -s -- --yes
 
-# Installation de Telegraf & InfluxDB (code frome doc.influxdata.com)
+# Installation InfluxDB (code frome doc.influxdata.com)
 wget -qO- https://repos.influxdata.com/influxdb.key | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/influxdb.gpg > /dev/null
 export DISTRIB_ID=$(lsb_release -si); export DISTRIB_CODENAME=$(lsb_release -sc)
 echo "deb [signed-by=/etc/apt/trusted.gpg.d/influxdb.gpg] https://repos.influxdata.com/${DISTRIB_ID,,} ${DISTRIB_CODENAME} stable" | sudo tee /etc/apt/sources.list.d/influxdb.list > /dev/null
 sudo apt-get update && sudo apt-get install influxdb2
 sudo service influxdb start
 
-wget https://dl.influxdata.com/telegraf/releases/telegraf_1.22.1-1_amd64.deb
-sudo dpkg -i telegraf_1.22.1-1_amd64.deb
+# Installation de Telegraf (code frome doc.influxdata.com)
+wget -qO- https://repos.influxdata.com/influxdb.key | sudo tee /etc/apt/trusted.gpg.d/influxdb.asc >/dev/null
+source /etc/os-release
+echo "deb https://repos.influxdata.com/${ID} ${VERSION_CODENAME} stable" | sudo tee /etc/apt/sources.list.d/influxdb.list
+sudo apt-get update && sudo apt-get install telegraf
 
 
 # wget -qO- https://repos.influxdata.com/influxdb.key | sudo tee /etc/apt/trusted.gpg.d/influxdb.asc >/dev/null
@@ -59,4 +62,5 @@ sudo dpkg -i telegraf_1.22.1-1_amd64.deb
 # sudo systemctl start influxdb
 
 # Lancement des services systemd
+
 # fichier='/etc/systemd/system/SAILui_server.service'
